@@ -2,8 +2,9 @@
 name = "xraydb-wasm"
 version = "0.1.0"
 edition = "2024"
+authors = ["Ameyanagi <contact@ameyanagi.com>"]
 description = "WASM bindings for XrayDB"
-license = "MIT"
+license = "MIT OR Apache-2.0"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

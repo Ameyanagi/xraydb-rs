@@ -2,6 +2,13 @@
 
 /target
 
+# Local planning artifacts
+/plans/
+
+# Ralph artifacts
+*ralph*
+prd.json
+
 # Upstream XrayDB repo (cloned for data generation)
 # Note: on case-insensitive macOS, /XrayDB also matches /xraydb
 /XrayDB

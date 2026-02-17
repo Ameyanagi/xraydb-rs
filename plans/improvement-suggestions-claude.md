@@ -2,7 +2,42 @@
 
 ## Context
 
-The xraydb-rs codebase is well-structured and fully functional (72 tests passing), but has accumulated code quality issues (29 clippy warnings), performance inefficiencies (O(n) linear scans where O(1) lookups are possible, redundant allocations in hot paths), and gaps in test coverage (no error path tests, no boundary tests). This plan addresses all three areas while keeping the public API unchanged.
+The xraydb-rs codebase is well-structured and fully functional (72 tests passing), but has accumulated code quality issues (29 clippy warnings), performance inefficiencies (O(n) linear scans where O(1) lookups are possible, redundant allocations in hot paths), and gaps in test coverage (no error path tests, no boundary tests). It also lacks a LICENSE file and README with proper attribution to the upstream XrayDB project. This plan addresses all areas while keeping the public API unchanged.
+
+---
+
+## Group 0: LICENSE, README, and Cargo.toml Metadata
+
+### 0.1 — Create `LICENSE-MIT` at project root
+
+MIT license with author: Ameyanagi <contact@ameyanagi.com>, year 2025.
+
+### 0.2 — Create `LICENSE-APACHE` at project root
+
+Apache License 2.0 with same author info.
+
+### 0.3 — Create `README.md` at project root
+
+Contents:
+- Project title and one-line description
+- Attribution section: clearly credit the original [XrayDB](https://github.com/xraypy/XrayDB) project by Matt Newville et al. Note that the X-ray data is from the upstream project (CC0 1.0 / Public Domain), and this Rust port is an independent reimplementation.
+- Credit the data sources: Elam/Ravel/Sieber tables, Chantler tables, Waasmaier-Kirfel f0 data
+- Workspace structure overview (4 crates)
+- Basic usage example (`XrayDb::new()`, `mu_elam`, `material_mu`)
+- Features section (mention `optics` feature gate)
+- License section: "Dual-licensed under MIT and Apache-2.0. The underlying X-ray data is in the public domain (CC0 1.0) from the XrayDB project."
+
+### 0.4 — Update `Cargo.toml` metadata across all crates
+
+Add to each crate's `[package]`:
+- `authors = ["Ameyanagi <contact@ameyanagi.com>"]`
+- `license = "MIT OR Apache-2.0"` (currently only xraydb-lib and xraydb-wasm have `license = "MIT"`)
+
+Crates to update:
+- `xraydb-data/Cargo.toml` — add authors + license
+- `xraydb-generate/Cargo.toml` — add authors + license
+- `xraydb-lib/Cargo.toml` — update license from `"MIT"` to `"MIT OR Apache-2.0"`, add authors
+- `xraydb-wasm/Cargo.toml` — update license from `"MIT"` to `"MIT OR Apache-2.0"`, add authors
 
 ---
 
@@ -145,27 +180,34 @@ In `material_mu` (lines 27-45), `molar_mass()` is called twice per element. Prec
 
 ---
 
-## Files to Modify
+## Files to Modify/Create
 
-| File | Groups |
-|------|--------|
-| `xraydb-lib/src/chemparser.rs` | 1 |
-| `xraydb-lib/src/db.rs` | 1, 2 |
-| `xraydb-lib/src/transitions.rs` | 1 |
-| `xraydb-lib/src/optics.rs` | 1 |
-| `xraydb-lib/src/ionchamber.rs` | 1 |
-| `xraydb-lib/src/chantler.rs` | 2, 3 |
-| `xraydb-lib/src/elam.rs` | 2, 3 |
-| `xraydb-lib/src/interp.rs` | 3 |
-| `xraydb-lib/src/waasmaier.rs` | 2 |
-| `xraydb-lib/src/materials.rs` | 3 |
-| `xraydb-lib/tests/phase3_tests.rs` | 1, 4 |
-| `xraydb-lib/tests/element_tests.rs` | 4 |
-| `xraydb-lib/tests/cross_section_tests.rs` | 4 |
-| `xraydb-lib/tests/material_tests.rs` | 4 |
-| `xraydb-generate/src/chantler.rs` | 1 |
-| `xraydb-generate/src/waasmaier.rs` | 1 |
-| `xraydb-generate/src/elam.rs` | 1 |
+| File | Groups | Action |
+|------|--------|--------|
+| `LICENSE-MIT` | 0 | Create |
+| `LICENSE-APACHE` | 0 | Create |
+| `README.md` | 0 | Create |
+| `xraydb-data/Cargo.toml` | 0 | Add authors + license |
+| `xraydb-generate/Cargo.toml` | 0 | Add authors + license |
+| `xraydb-lib/Cargo.toml` | 0 | Update license, add authors |
+| `xraydb-wasm/Cargo.toml` | 0 | Update license, add authors |
+| `xraydb-lib/src/chemparser.rs` | 1 | Edit |
+| `xraydb-lib/src/db.rs` | 1, 2 | Edit |
+| `xraydb-lib/src/transitions.rs` | 1 | Edit |
+| `xraydb-lib/src/optics.rs` | 1 | Edit |
+| `xraydb-lib/src/ionchamber.rs` | 1 | Edit |
+| `xraydb-lib/src/chantler.rs` | 2, 3 | Edit |
+| `xraydb-lib/src/elam.rs` | 2, 3 | Edit |
+| `xraydb-lib/src/interp.rs` | 3 | Edit |
+| `xraydb-lib/src/waasmaier.rs` | 2 | Edit |
+| `xraydb-lib/src/materials.rs` | 3 | Edit |
+| `xraydb-lib/tests/phase3_tests.rs` | 1, 4 | Edit |
+| `xraydb-lib/tests/element_tests.rs` | 4 | Edit |
+| `xraydb-lib/tests/cross_section_tests.rs` | 4 | Edit |
+| `xraydb-lib/tests/material_tests.rs` | 4 | Edit |
+| `xraydb-generate/src/chantler.rs` | 1 | Edit |
+| `xraydb-generate/src/waasmaier.rs` | 1 | Edit |
+| `xraydb-generate/src/elam.rs` | 1 | Edit |
 
 ## Verification
 
@@ -175,4 +217,4 @@ cargo test --all-features          # all existing + new tests pass
 cargo clippy --all-targets --all-features  # zero warnings (after Group 1)
 ```
 
-Expected final state: ~97 tests passing, 0 clippy warnings.
+Expected final state: ~97 tests passing, 0 clippy warnings, proper LICENSE + README with upstream attribution.

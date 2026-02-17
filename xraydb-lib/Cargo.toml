@@ -2,8 +2,9 @@
 name = "xraydb"
 version = "0.1.0"
 edition = "2024"
+authors = ["Ameyanagi <contact@ameyanagi.com>"]
 description = "X-ray reference data for the elements"
-license = "MIT"
+license = "MIT OR Apache-2.0"
 
 [features]
 optics = ["dep:num-complex"]
