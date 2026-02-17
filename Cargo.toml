@@ -1,0 +1,3 @@
+[workspace]
+members = ["xraydb-data", "xraydb-generate", "xraydb-lib", "xraydb-wasm"]
+resolver = "3"

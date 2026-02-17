@@ -1,0 +1,20 @@
+[package]
+name = "xraydb"
+version = "0.1.0"
+edition = "2024"
+description = "X-ray reference data for the elements"
+license = "MIT"
+
+[features]
+optics = ["dep:num-complex"]
+
+[dependencies]
+xraydb-data = { path = "../xraydb-data" }
+serde = { version = "1", default-features = false, features = ["derive", "alloc"] }
+postcard = { version = "1", default-features = false, features = ["alloc"] }
+ruzstd = { version = "0.8" }
+num-complex = { version = "0.4", optional = true }
+
+[dev-dependencies]
+approx = "0.5"
+num-complex = "0.4"

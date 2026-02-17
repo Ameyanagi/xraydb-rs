@@ -1,0 +1,10 @@
+.codex/
+
+/target
+
+# Upstream XrayDB repo (cloned for data generation)
+# Note: on case-insensitive macOS, /XrayDB also matches /xraydb
+/XrayDB
+
+# Intermediate data files
+/data/xraydb_raw.json

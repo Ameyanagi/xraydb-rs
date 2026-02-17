@@ -1,0 +1,10 @@
+[package]
+name = "xraydb-generate"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+xraydb-data = { path = "../xraydb-data" }
+postcard = { version = "1", features = ["alloc"] }
+zstd = "0.13"
+serde = { version = "1", features = ["derive"] }
