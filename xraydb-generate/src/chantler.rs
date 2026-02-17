@@ -126,24 +126,16 @@ pub fn parse_chantler(dir: &Path) -> Vec<ChantlerRecord> {
 fn parse_chantler_line1(line: &str) -> (String, f64) {
     // Format: "Fe:    Z = 26;   Atomic weight = 55.84700 g/mol ;    nominal density:   [INLINE] = 7.8600E+00 g/cm3"
     // We need the element symbol (before ':') and density (second-to-last word before "g/cm3")
-    let elem = line
-        .split(':')
-        .next()
-        .unwrap()
-        .trim()
-        .to_string();
+    let elem = line.split(':').next().unwrap().trim().to_string();
 
     // Find density: look for the pattern "= <number> g/cm3" near the end
     let mut words: Vec<&str> = line.split_whitespace().collect();
     // Remove trailing "g/cm3" if present
-    if words.last().map_or(false, |w| w.contains("g/cm")) {
+    if words.last().is_some_and(|w| w.contains("g/cm")) {
         words.pop();
     }
     // The density value should now be the last word
-    let density: f64 = words
-        .last()
-        .and_then(|w| w.parse().ok())
-        .unwrap_or(0.0);
+    let density: f64 = words.last().and_then(|w| w.parse().ok()).unwrap_or(0.0);
 
     (elem, density)
 }

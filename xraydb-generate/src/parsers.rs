@@ -2,8 +2,7 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use xraydb_data::{
-    ComptonEnergiesRecord, CoreWidthRecord, ElementRecord, IonizationPotentialRecord,
-    VersionRecord,
+    ComptonEnergiesRecord, CoreWidthRecord, ElementRecord, IonizationPotentialRecord, VersionRecord,
 };
 
 pub fn parse_version(path: &Path) -> Vec<VersionRecord> {
@@ -47,8 +46,7 @@ pub fn parse_elements(path: &Path) -> Vec<ElementRecord> {
 }
 
 pub fn parse_ionization_potentials(path: &Path) -> Vec<IonizationPotentialRecord> {
-    let content =
-        std::fs::read_to_string(path).expect("failed to read ion_chamber_potentials.txt");
+    let content = std::fs::read_to_string(path).expect("failed to read ion_chamber_potentials.txt");
     let mut records = Vec::new();
     for line in content.lines() {
         if line.starts_with('#') || line.trim().len() < 2 {

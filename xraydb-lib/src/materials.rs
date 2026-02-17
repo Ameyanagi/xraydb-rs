@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::chemparser::chemparse;
 use crate::constants::{AVOGADRO, R_ELECTRON_CM};
 use crate::db::XrayDb;
@@ -22,11 +20,16 @@ impl XrayDb {
         kind: CrossSectionKind,
     ) -> Result<Vec<f64>> {
         let composition = chemparse(formula)?;
+        let mut species = Vec::with_capacity(composition.len());
+        for (sym, &count) in &composition {
+            let molar_mass = self.molar_mass(sym)?;
+            species.push((sym.as_str(), count, molar_mass));
+        }
 
         // Calculate total formula weight
-        let total_weight: f64 = composition
+        let total_weight: f64 = species
             .iter()
-            .map(|(sym, &count)| count * self.molar_mass(sym).unwrap_or(0.0))
+            .map(|(_, count, molar_mass)| count * molar_mass)
             .sum();
 
         if total_weight <= 0.0 {
@@ -35,18 +38,10 @@ impl XrayDb {
             )));
         }
 
-        // Calculate mass fractions
-        let mass_fracs: HashMap<&str, f64> = composition
-            .iter()
-            .map(|(sym, &count)| {
-                let frac = count * self.molar_mass(sym).unwrap_or(0.0) / total_weight;
-                (sym.as_str(), frac)
-            })
-            .collect();
-
         // Sum weighted cross-sections
         let mut mu = vec![0.0_f64; energies.len()];
-        for (sym, &frac) in &mass_fracs {
+        for &(sym, count, molar_mass) in &species {
+            let frac = count * molar_mass / total_weight;
             let elem_mu = self.mu_elam(sym, energies, kind)?;
             for (i, &val) in elem_mu.iter().enumerate() {
                 mu[i] += frac * val;
@@ -76,13 +71,18 @@ impl XrayDb {
         energy: f64,
     ) -> Result<(f64, f64, f64)> {
         let composition = chemparse(formula)?;
+        let mut species = Vec::with_capacity(composition.len());
+        for (sym, &count) in &composition {
+            let molar_mass = self.molar_mass(sym)?;
+            species.push((sym.as_str(), count, molar_mass));
+        }
 
         // wavelength in cm
         let wavelength = 1.0e-7 * crate::constants::PLANCK_HC / energy;
 
-        let total_weight: f64 = composition
+        let total_weight: f64 = species
             .iter()
-            .map(|(sym, &count)| count * self.molar_mass(sym).unwrap_or(0.0))
+            .map(|(_, count, molar_mass)| count * molar_mass)
             .sum();
 
         if total_weight <= 0.0 {
@@ -95,7 +95,7 @@ impl XrayDb {
         let mut sum_f1 = 0.0_f64;
         let mut sum_f2 = 0.0_f64;
 
-        for (sym, &count) in &composition {
+        for &(sym, count, _) in &species {
             let z = self.atomic_number(sym)? as f64;
             let f1_vals = self.f1_chantler(sym, &[energy])?;
             let f2_vals = self.f2_chantler(sym, &[energy])?;
@@ -105,8 +105,8 @@ impl XrayDb {
         }
 
         // Number density factor
-        let prefactor =
-            R_ELECTRON_CM * wavelength * wavelength * density * AVOGADRO / (2.0 * std::f64::consts::PI * total_weight);
+        let prefactor = R_ELECTRON_CM * wavelength * wavelength * density * AVOGADRO
+            / (2.0 * std::f64::consts::PI * total_weight);
 
         let delta = prefactor * sum_f1;
         let beta = prefactor * sum_f2;

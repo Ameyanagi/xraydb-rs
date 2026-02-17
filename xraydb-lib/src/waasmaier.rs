@@ -9,14 +9,18 @@ impl XrayDb {
         let ions: Vec<&str> = match element {
             Some(elem) => {
                 let sym = self.symbol(elem)?;
-                self.raw()
-                    .waasmaier
+                self.waasmaier_indices_by_symbol(sym)
+                    .unwrap_or(&[])
                     .iter()
-                    .filter(|w| w.element == sym)
-                    .map(|w| w.ion.as_str())
+                    .filter_map(|&idx| self.raw().waasmaier.get(idx).map(|w| w.ion.as_str()))
                     .collect()
             }
-            None => self.raw().waasmaier.iter().map(|w| w.ion.as_str()).collect(),
+            None => self
+                .raw()
+                .waasmaier
+                .iter()
+                .map(|w| w.ion.as_str())
+                .collect(),
         };
         Ok(ions)
     }
@@ -29,10 +33,7 @@ impl XrayDb {
     /// where c = offset, a_i = scale, b_i = exponents.
     pub fn f0(&self, ion: &str, q: &[f64]) -> Result<Vec<f64>> {
         let record = self
-            .raw()
-            .waasmaier
-            .iter()
-            .find(|w| w.ion == ion)
+            .waasmaier_by_ion(ion)
             .ok_or_else(|| XrayDbError::UnknownIon(ion.to_string()))?;
 
         Ok(q.iter()

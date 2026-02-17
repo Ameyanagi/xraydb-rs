@@ -3,14 +3,13 @@ use std::collections::HashMap;
 use crate::error::{Result, XrayDbError};
 
 const ELEMENTS: &[&str] = &[
-    "Ac", "Ag", "Al", "Am", "Ar", "As", "At", "Au", "B", "Ba", "Be", "Bi", "Bk", "Br", "C",
-    "Ca", "Cd", "Ce", "Cf", "Cl", "Cm", "Co", "Cr", "Cs", "Cu", "Dy", "Er", "Es", "Eu", "F",
-    "Fe", "Fm", "Fr", "Ga", "Gd", "Ge", "H", "He", "Hf", "Hg", "Ho", "I", "In", "Ir", "K",
-    "Kr", "La", "Li", "Lr", "Lu", "Md", "Mg", "Mn", "Mo", "N", "Na", "Nb", "Nd", "Ne", "Ni",
-    "No", "Np", "O", "Os", "P", "Pa", "Pb", "Pd", "Pm", "Po", "Pr", "Pt", "Pu", "Ra", "Rb",
-    "Re", "Rh", "Rn", "Ru", "S", "Sb", "Sc", "Se", "Si", "Sm", "Sn", "Sr", "Ta", "Tb", "Tc",
-    "Te", "Th", "Ti", "Tl", "Tm", "U", "Unh", "Unp", "Unq", "Uns", "V", "W", "Xe", "Y", "Yb",
-    "Zn", "Zr",
+    "Ac", "Ag", "Al", "Am", "Ar", "As", "At", "Au", "B", "Ba", "Be", "Bi", "Bk", "Br", "C", "Ca",
+    "Cd", "Ce", "Cf", "Cl", "Cm", "Co", "Cr", "Cs", "Cu", "Dy", "Er", "Es", "Eu", "F", "Fe", "Fm",
+    "Fr", "Ga", "Gd", "Ge", "H", "He", "Hf", "Hg", "Ho", "I", "In", "Ir", "K", "Kr", "La", "Li",
+    "Lr", "Lu", "Md", "Mg", "Mn", "Mo", "N", "Na", "Nb", "Nd", "Ne", "Ni", "No", "Np", "O", "Os",
+    "P", "Pa", "Pb", "Pd", "Pm", "Po", "Pr", "Pt", "Pu", "Ra", "Rb", "Re", "Rh", "Rn", "Ru", "S",
+    "Sb", "Sc", "Se", "Si", "Sm", "Sn", "Sr", "Ta", "Tb", "Tc", "Te", "Th", "Ti", "Tl", "Tm", "U",
+    "Unh", "Unp", "Unq", "Uns", "V", "W", "Xe", "Y", "Yb", "Zn", "Zr",
 ];
 
 fn is_element(sym: &str) -> bool {
@@ -76,7 +75,10 @@ impl Tokenizer {
             return Ok(Token::Name(name));
         }
 
-        Err(format!("unrecognized character '{}' at position {}", ch, self.pos))
+        Err(format!(
+            "unrecognized character '{}' at position {}",
+            ch, self.pos
+        ))
     }
 
     fn read_number(&mut self) -> std::result::Result<Token, String> {
@@ -134,7 +136,9 @@ pub fn chemparse(formula: &str) -> Result<HashMap<String, f64>> {
     let formula = preprocess_formula(formula);
 
     let mut tokenizer = Tokenizer::new(&formula);
-    let current = tokenizer.next_token().map_err(|e| XrayDbError::InvalidFormula(e))?;
+    let current = tokenizer
+        .next_token()
+        .map_err(XrayDbError::InvalidFormula)?;
 
     let (result, next) = parse_sequence(&mut tokenizer, current)?;
 
@@ -188,28 +192,31 @@ fn add_to_result(node: &FormulaNode, weight: f64, result: &mut HashMap<String, f
     }
 }
 
-fn parse_sequence(
-    tokenizer: &mut Tokenizer,
-    mut current: Token,
-) -> Result<(FormulaNode, Token)> {
+fn parse_sequence(tokenizer: &mut Tokenizer, mut current: Token) -> Result<(FormulaNode, Token)> {
     let mut items: Vec<(FormulaNode, f64)> = Vec::new();
 
     loop {
         match &current {
             Token::LParen => {
                 // Parse nested sequence
-                current = tokenizer.next_token().map_err(|e| XrayDbError::InvalidFormula(e))?;
+                current = tokenizer
+                    .next_token()
+                    .map_err(XrayDbError::InvalidFormula)?;
                 let (inner, next) = parse_sequence(tokenizer, current)?;
                 if next != Token::RParen {
                     return Err(XrayDbError::InvalidFormula(
                         "expected closing parenthesis".to_string(),
                     ));
                 }
-                current = tokenizer.next_token().map_err(|e| XrayDbError::InvalidFormula(e))?;
+                current = tokenizer
+                    .next_token()
+                    .map_err(XrayDbError::InvalidFormula)?;
 
                 // Optional count after ')'
                 let count = if let Token::Num(n) = current {
-                    current = tokenizer.next_token().map_err(|e| XrayDbError::InvalidFormula(e))?;
+                    current = tokenizer
+                        .next_token()
+                        .map_err(XrayDbError::InvalidFormula)?;
                     n
                 } else {
                     1.0
@@ -224,11 +231,15 @@ fn parse_sequence(
                     )));
                 }
                 let resolved = resolve_element(&sym).to_string();
-                current = tokenizer.next_token().map_err(|e| XrayDbError::InvalidFormula(e))?;
+                current = tokenizer
+                    .next_token()
+                    .map_err(XrayDbError::InvalidFormula)?;
 
                 // Optional count after element
                 let count = if let Token::Num(n) = current {
-                    current = tokenizer.next_token().map_err(|e| XrayDbError::InvalidFormula(e))?;
+                    current = tokenizer
+                        .next_token()
+                        .map_err(XrayDbError::InvalidFormula)?;
                     n
                 } else {
                     1.0

@@ -88,6 +88,7 @@ impl XrayDb {
     /// * `ignore_f1` - Ignore f1 dispersion correction
     /// * `ignore_f2` - Ignore f2 absorption
     /// * `m` - Reflection order
+    #[allow(clippy::too_many_arguments)]
     pub fn darwin_width(
         &self,
         energy: f64,
@@ -286,13 +287,13 @@ impl XrayDb {
             let mut ktz = (n * n - c(cos_th * cos_th)).sqrt() * c(qf);
 
             if polarization == Polarization::P {
-                ktz = ktz / n;
+                ktz /= n;
             }
 
             let mut r = (kiz - ktz) / (kiz + ktz);
 
             if roughness > 1e-12 {
-                r = r * (c(-2.0 * roughness * roughness) * kiz * ktz).exp();
+                r *= (c(-2.0 * roughness * roughness) * kiz * ktz).exp();
             }
 
             result.push((r * r.conj()).re);
@@ -315,6 +316,7 @@ impl XrayDb {
     /// * `substrate_rough` - Substrate-layer interface roughness in Å
     /// * `surface_rough` - Air-surface interface roughness in Å
     /// * `polarization` - S or P polarization
+    #[allow(clippy::too_many_arguments)]
     pub fn multilayer_reflectivity(
         &self,
         stackup: &[&str],
@@ -405,8 +407,7 @@ impl XrayDb {
 
             // Substrate roughness
             if substrate_rough >= 1e-12 {
-                r_amp =
-                    r_amp * (c(-2.0 * substrate_rough * substrate_rough) * kz[last] * kz_sub).exp();
+                r_amp *= (c(-2.0 * substrate_rough * substrate_rough) * kz[last] * kz_sub).exp();
             }
 
             // Recurse upward through layers
@@ -435,8 +436,7 @@ impl XrayDb {
 
             // Surface roughness
             if surface_rough >= 1e-12 {
-                r_amp =
-                    r_amp * (c(-2.0 * surface_rough * surface_rough) * kiz * kz[0]).exp();
+                r_amp *= (c(-2.0 * surface_rough * surface_rough) * kiz * kz[0]).exp();
             }
 
             result.push((r_amp * r_amp.conj()).re);
@@ -459,6 +459,7 @@ impl XrayDb {
     /// * `substrate_roughness` - Substrate-coating roughness in Å
     /// * `binder` - Optional binder layer: (material, thickness_Å, density)
     /// * `polarization` - S or P polarization
+    #[allow(clippy::too_many_arguments)]
     pub fn coated_reflectivity(
         &self,
         coating: &str,
@@ -479,11 +480,7 @@ impl XrayDb {
                 vec![coating_thick, binder_thick],
                 vec![coating_density, binder_dens],
             ),
-            None => (
-                vec![coating],
-                vec![coating_thick],
-                vec![coating_density],
-            ),
+            None => (vec![coating], vec![coating_thick], vec![coating_density]),
         };
 
         self.multilayer_reflectivity(

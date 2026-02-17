@@ -11,15 +11,9 @@ pub enum ChantlerKind {
 }
 
 impl XrayDb {
-    fn chantler_record(
-        &self,
-        element: &str,
-    ) -> Result<&xraydb_data::ChantlerRecord> {
+    fn chantler_record(&self, element: &str) -> Result<&xraydb_data::ChantlerRecord> {
         let sym = self.symbol(element)?;
-        self.raw()
-            .chantler
-            .iter()
-            .find(|r| r.element == sym)
+        self.chantler_by_symbol(sym)
             .ok_or_else(|| XrayDbError::UnknownElement(element.to_string()))
     }
 
@@ -48,12 +42,10 @@ impl XrayDb {
     /// Uses linear interpolation (matching Python's UnivariateSpline with s=0).
     pub fn f1_chantler(&self, element: &str, energies: &[f64]) -> Result<Vec<f64>> {
         let row = self.chantler_record(element)?;
+        let (emin, emax) = chantler_energy_bounds(row);
 
         // Clamp energies to valid range
-        let clamped: Vec<f64> = energies
-            .iter()
-            .map(|&e| e.clamp(row.energy[0], 1e6_f64.min(*row.energy.last().unwrap())))
-            .collect();
+        let clamped = clamp_energies(energies, emin, emax);
 
         // For f1, use linear interpolation in linear space
         // (Python uses UnivariateSpline; linear interp is a reasonable approximation)
@@ -65,14 +57,12 @@ impl XrayDb {
     /// Uses log-log linear interpolation.
     pub fn f2_chantler(&self, element: &str, energies: &[f64]) -> Result<Vec<f64>> {
         let row = self.chantler_record(element)?;
+        let (emin, emax) = chantler_energy_bounds(row);
 
-        let clamped: Vec<f64> = energies
-            .iter()
-            .map(|&e| e.clamp(row.energy[0], 1e6_f64.min(*row.energy.last().unwrap())))
-            .collect();
+        let clamped = clamp_energies(energies, emin, emax);
 
         // Clamp values to avoid log(0)
-        let f2_safe: Vec<f64> = row.f2.iter().map(|&v| if v.abs() < 1e-99 { 1e-99 } else { v }).collect();
+        let f2_safe = safe_for_log(&row.f2);
         Ok(interp_loglog(&clamped, &row.energy, &f2_safe))
     }
 
@@ -86,11 +76,9 @@ impl XrayDb {
         kind: ChantlerKind,
     ) -> Result<Vec<f64>> {
         let row = self.chantler_record(element)?;
+        let (emin, emax) = chantler_energy_bounds(row);
 
-        let clamped: Vec<f64> = energies
-            .iter()
-            .map(|&e| e.clamp(row.energy[0], 1e6_f64.min(*row.energy.last().unwrap())))
-            .collect();
+        let clamped = clamp_energies(energies, emin, emax);
 
         let values = match kind {
             ChantlerKind::Total => &row.mu_total,
@@ -99,7 +87,27 @@ impl XrayDb {
         };
 
         // Clamp values to avoid log(0)
-        let safe: Vec<f64> = values.iter().map(|&v| if v.abs() < 1e-99 { 1e-99 } else { v }).collect();
+        let safe = safe_for_log(values);
         Ok(interp_loglog(&clamped, &row.energy, &safe))
     }
+}
+
+#[inline]
+fn chantler_energy_bounds(row: &xraydb_data::ChantlerRecord) -> (f64, f64) {
+    let emin = row.energy.first().copied().unwrap_or(0.0);
+    let emax = row.energy.last().copied().unwrap_or(emin).min(1e6_f64);
+    (emin, emax)
+}
+
+#[inline]
+fn clamp_energies(energies: &[f64], emin: f64, emax: f64) -> Vec<f64> {
+    energies.iter().map(|&e| e.clamp(emin, emax)).collect()
+}
+
+#[inline]
+fn safe_for_log(values: &[f64]) -> Vec<f64> {
+    values
+        .iter()
+        .map(|&v| if v.abs() < 1e-99 { 1e-99 } else { v })
+        .collect()
 }

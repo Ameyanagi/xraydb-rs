@@ -79,10 +79,10 @@ impl XrayDb {
             if trans.element != sym {
                 continue;
             }
-            if let Some(level) = initial_level {
-                if trans.initial_level != level {
-                    continue;
-                }
+            if let Some(level) = initial_level
+                && trans.initial_level != level
+            {
+                continue;
             }
             if let Some(max_energy) = excitation_energy {
                 // Find the edge energy for this transition's initial level
@@ -91,10 +91,9 @@ impl XrayDb {
                     .xray_levels
                     .iter()
                     .find(|l| l.element == sym && l.iupac_symbol == trans.initial_level)
+                    && level.absorption_edge > max_energy
                 {
-                    if level.absorption_edge > max_energy {
-                        continue;
-                    }
+                    continue;
                 }
             }
 
@@ -114,11 +113,7 @@ impl XrayDb {
     /// Guess the element and edge from an X-ray energy.
     ///
     /// Returns (element_symbol, edge_label) for the closest match.
-    pub fn guess_edge(
-        &self,
-        energy: f64,
-        edges: Option<&[&str]>,
-    ) -> Option<(String, String)> {
+    pub fn guess_edge(&self, energy: f64, edges: Option<&[&str]>) -> Option<(String, String)> {
         let default_edges = ["K", "L3", "L2", "L1", "M5"];
         let edge_filter = edges.unwrap_or(&default_edges);
 
@@ -142,11 +137,10 @@ impl XrayDb {
 
     /// Returns the ionization potential for a gas (in eV per ion pair).
     pub fn ionization_potential(&self, gas: &str) -> Result<f64> {
-        let gas_lower = gas.to_lowercase();
         self.raw()
             .ionization_potentials
             .iter()
-            .find(|ip| ip.gas.to_lowercase() == gas_lower)
+            .find(|ip| ip.gas.eq_ignore_ascii_case(gas))
             .map(|ip| ip.potential)
             .ok_or_else(|| XrayDbError::UnknownGas(gas.to_string()))
     }

@@ -9,7 +9,16 @@ mod optics {
     fn test_darwin_width_si_111() {
         let db = XrayDb::new();
         let dw = db
-            .darwin_width(10000.0, "Si", (1, 1, 1), None, Polarization::S, false, false, 1)
+            .darwin_width(
+                10000.0,
+                "Si",
+                (1, 1, 1),
+                None,
+                Polarization::S,
+                false,
+                false,
+                1,
+            )
             .unwrap();
         let dw = dw.expect("Bragg condition should be satisfied at 10 keV");
 
@@ -34,10 +43,7 @@ mod optics {
 
         // Intensity should have values near 1.0 (total reflection)
         let max_intensity = dw.intensity.iter().cloned().fold(0.0_f64, f64::max);
-        assert!(
-            max_intensity > 0.8,
-            "max intensity = {max_intensity}"
-        );
+        assert!(max_intensity > 0.8, "max intensity = {max_intensity}");
 
         // Rocking curve should have meaningful FWHM
         assert!(dw.rocking_energy_fwhm > 0.0);
@@ -47,13 +53,31 @@ mod optics {
     fn test_darwin_width_si_220() {
         let db = XrayDb::new();
         let dw = db
-            .darwin_width(10000.0, "Si", (2, 2, 0), None, Polarization::S, false, false, 1)
+            .darwin_width(
+                10000.0,
+                "Si",
+                (2, 2, 0),
+                None,
+                Polarization::S,
+                false,
+                false,
+                1,
+            )
             .unwrap();
         let dw = dw.expect("Bragg condition should be satisfied");
 
         // Si(220) at 10 keV: larger angle than (111)
         let dw_111 = db
-            .darwin_width(10000.0, "Si", (1, 1, 1), None, Polarization::S, false, false, 1)
+            .darwin_width(
+                10000.0,
+                "Si",
+                (1, 1, 1),
+                None,
+                Polarization::S,
+                false,
+                false,
+                1,
+            )
             .unwrap()
             .unwrap();
         assert!(dw.theta > dw_111.theta);
@@ -67,7 +91,16 @@ mod optics {
         let db = XrayDb::new();
         // Very low energy should make Bragg condition impossible
         let result = db
-            .darwin_width(100.0, "Si", (1, 1, 1), None, Polarization::S, false, false, 1)
+            .darwin_width(
+                100.0,
+                "Si",
+                (1, 1, 1),
+                None,
+                Polarization::S,
+                false,
+                false,
+                1,
+            )
             .unwrap();
         assert!(result.is_none());
     }
@@ -76,11 +109,29 @@ mod optics {
     fn test_darwin_width_p_polarization() {
         let db = XrayDb::new();
         let dw_s = db
-            .darwin_width(10000.0, "Si", (1, 1, 1), None, Polarization::S, false, false, 1)
+            .darwin_width(
+                10000.0,
+                "Si",
+                (1, 1, 1),
+                None,
+                Polarization::S,
+                false,
+                false,
+                1,
+            )
             .unwrap()
             .unwrap();
         let dw_p = db
-            .darwin_width(10000.0, "Si", (1, 1, 1), None, Polarization::P, false, false, 1)
+            .darwin_width(
+                10000.0,
+                "Si",
+                (1, 1, 1),
+                None,
+                Polarization::P,
+                false,
+                false,
+                1,
+            )
             .unwrap()
             .unwrap();
 
@@ -92,7 +143,16 @@ mod optics {
     fn test_darwin_width_ge() {
         let db = XrayDb::new();
         let dw = db
-            .darwin_width(10000.0, "Ge", (1, 1, 1), None, Polarization::S, false, false, 1)
+            .darwin_width(
+                10000.0,
+                "Ge",
+                (1, 1, 1),
+                None,
+                Polarization::S,
+                false,
+                false,
+                1,
+            )
             .unwrap();
         assert!(dw.is_some());
     }
@@ -197,10 +257,7 @@ mod optics {
 
         // Should have a Bragg peak somewhere
         let max_refl = refl.iter().cloned().fold(0.0_f64, f64::max);
-        assert!(
-            max_refl > 0.01,
-            "max multilayer reflectivity = {max_refl}"
-        );
+        assert!(max_refl > 0.01, "max multilayer reflectivity = {max_refl}");
     }
 
     #[test]
@@ -274,7 +331,7 @@ fn test_ionchamber_nitrogen() {
             1.0,   // 1 V
             100.0, // 100 cm
             10000.0,
-            1e-6,  // 1 µA/V
+            1e-6, // 1 µA/V
             true,
             true,
         )
@@ -307,15 +364,7 @@ fn test_ionchamber_argon() {
 
     // Argon absorbs more than nitrogen at same conditions
     let fluxes_n = db
-        .ionchamber_fluxes(
-            &[("nitrogen", 1.0)],
-            1.0,
-            30.0,
-            10000.0,
-            1e-6,
-            true,
-            true,
-        )
+        .ionchamber_fluxes(&[("nitrogen", 1.0)], 1.0, 30.0, 10000.0, 1e-6, true, true)
         .unwrap();
 
     // Higher absorption means lower flux for same voltage

@@ -89,11 +89,19 @@ fn main() {
 
     println!("\nSerializing with postcard...");
     let serialized = postcard::to_allocvec(&db).expect("postcard serialization failed");
-    println!("  Serialized size: {} bytes ({:.2} MB)", serialized.len(), serialized.len() as f64 / 1_048_576.0);
+    println!(
+        "  Serialized size: {} bytes ({:.2} MB)",
+        serialized.len(),
+        serialized.len() as f64 / 1_048_576.0
+    );
 
     println!("Compressing with zstd (level 19)...");
     let compressed = zstd::encode_all(&serialized[..], 19).expect("zstd compression failed");
-    println!("  Compressed size: {} bytes ({:.2} MB)", compressed.len(), compressed.len() as f64 / 1_048_576.0);
+    println!(
+        "  Compressed size: {} bytes ({:.2} MB)",
+        compressed.len(),
+        compressed.len() as f64 / 1_048_576.0
+    );
     println!(
         "  Compression ratio: {:.1}x",
         serialized.len() as f64 / compressed.len() as f64

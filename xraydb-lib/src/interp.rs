@@ -3,9 +3,7 @@
 /// Interpolates values from `(xp, fp)` at points `x`.
 /// Values outside the range are clamped to the boundary values.
 pub fn interp(x: &[f64], xp: &[f64], fp: &[f64]) -> Vec<f64> {
-    x.iter()
-        .map(|&xi| interp_one(xi, xp, fp))
-        .collect()
+    x.iter().map(|&xi| interp_one(xi, xp, fp)).collect()
 }
 
 /// Interpolate a single value.
@@ -40,10 +38,8 @@ pub fn interp_one(x: f64, xp: &[f64], fp: &[f64]) -> f64 {
 pub fn interp_loglog(x: &[f64], xp: &[f64], fp: &[f64]) -> Vec<f64> {
     let log_xp: Vec<f64> = xp.iter().map(|v| v.ln()).collect();
     let log_fp: Vec<f64> = fp.iter().map(|v| v.ln()).collect();
-    let log_x: Vec<f64> = x.iter().map(|v| v.ln()).collect();
-    interp(&log_x, &log_xp, &log_fp)
-        .into_iter()
-        .map(|v| v.exp())
+    x.iter()
+        .map(|&xi| interp_one(xi.ln(), &log_xp, &log_fp).exp())
         .collect()
 }
 

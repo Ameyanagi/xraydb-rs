@@ -56,6 +56,7 @@ impl XrayDb {
     /// * `sensitivity` - Current sensitivity in A/V
     /// * `with_compton` - Include Compton electron energy contribution
     /// * `both_carriers` - Count both electron and ion carriers (true for most chambers)
+    #[allow(clippy::too_many_arguments)]
     pub fn ionchamber_fluxes(
         &self,
         gases: &[(&str, f64)],
@@ -103,15 +104,20 @@ impl XrayDb {
             };
 
             // Get ionization potential
-            let ip = self.ionization_potential(gas_name)
+            let ip = self
+                .ionization_potential(gas_name)
                 .or_else(|_| self.ionization_potential(lookup_name))
                 .unwrap_or(32.0); // default fallback
 
             // Compute material_mu for each kind
-            let photo = self.material_mu_named(lookup_name, &e_arr, CrossSectionKind::Photo, None)?[0];
-            let total = self.material_mu_named(lookup_name, &e_arr, CrossSectionKind::Total, None)?[0];
-            let incoh = self.material_mu_named(lookup_name, &e_arr, CrossSectionKind::Incoherent, None)?[0];
-            let coh = self.material_mu_named(lookup_name, &e_arr, CrossSectionKind::Coherent, None)?[0];
+            let photo =
+                self.material_mu_named(lookup_name, &e_arr, CrossSectionKind::Photo, None)?[0];
+            let total =
+                self.material_mu_named(lookup_name, &e_arr, CrossSectionKind::Total, None)?[0];
+            let incoh =
+                self.material_mu_named(lookup_name, &e_arr, CrossSectionKind::Incoherent, None)?[0];
+            let coh =
+                self.material_mu_named(lookup_name, &e_arr, CrossSectionKind::Coherent, None)?[0];
 
             mu_photo += photo * weight;
             mu_total += total * weight;
@@ -137,8 +143,7 @@ impl XrayDb {
             0.0
         };
 
-        let absorbed_energy =
-            ncarriers * (energy * atten_photo + energy_compton * atten_incoh);
+        let absorbed_energy = ncarriers * (energy * atten_photo + energy_compton * atten_incoh);
 
         let qcharge = crate::constants::ELEMENTARY_CHARGE;
         let flux_in = if absorbed_energy > 0.0 {

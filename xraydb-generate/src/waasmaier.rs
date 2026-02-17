@@ -22,8 +22,8 @@ pub fn parse_waasmaier(path: &Path) -> Vec<WaasmaierRecord> {
 
     while i < lines.len() {
         let line = lines[i];
-        if line.starts_with("#S ") {
-            let parts: Vec<&str> = line[3..].split_whitespace().collect();
+        if let Some(stripped) = line.strip_prefix("#S ") {
+            let parts: Vec<&str> = stripped.split_whitespace().collect();
             if parts.len() >= 2 {
                 let atno: u16 = parts[0].parse().unwrap();
                 let ion = parts[1].to_string();

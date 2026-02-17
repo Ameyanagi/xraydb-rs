@@ -5,19 +5,19 @@ use xraydb_data::{
     XrayTransitionRecord,
 };
 
-/// Parse `elam.dat` — the main Elam, Ravel, Sieber data file.
-///
-/// Uses a state-machine parser matching the Python `add_Elam` function.
-/// Returns (xray_levels, xray_transitions, coster_kronig, photoabsorption, scattering).
-pub fn parse_elam(
-    path: &Path,
-) -> (
+type ElamParseResult = (
     Vec<XrayLevelRecord>,
     Vec<XrayTransitionRecord>,
     Vec<CosterKronigRecord>,
     Vec<PhotoabsorptionRecord>,
     Vec<ScatteringRecord>,
-) {
+);
+
+/// Parse `elam.dat` — the main Elam, Ravel, Sieber data file.
+///
+/// Uses a state-machine parser matching the Python `add_Elam` function.
+/// Returns (xray_levels, xray_transitions, coster_kronig, photoabsorption, scattering).
+pub fn parse_elam(path: &Path) -> ElamParseResult {
     let content = std::fs::read_to_string(path).expect("failed to read elam.dat");
     let mut lines: Vec<&str> = content.lines().collect();
 

@@ -1,5 +1,7 @@
+use std::thread;
+
 use approx::assert_relative_eq;
-use xraydb::XrayDb;
+use xraydb::{XrayDb, XrayDbError};
 
 #[test]
 fn test_element_count() {
@@ -32,6 +34,19 @@ fn test_atomic_number_by_z_string() {
 }
 
 #[test]
+fn test_atomic_number_by_invalid_z_string() {
+    let db = XrayDb::new();
+    assert!(matches!(
+        db.atomic_number("0"),
+        Err(XrayDbError::UnknownElement(_))
+    ));
+    assert!(matches!(
+        db.atomic_number("999"),
+        Err(XrayDbError::UnknownElement(_))
+    ));
+}
+
+#[test]
 fn test_unknown_element() {
     let db = XrayDb::new();
     assert!(db.atomic_number("Xx").is_err());
@@ -58,6 +73,19 @@ fn test_density() {
     let db = XrayDb::new();
     assert_relative_eq!(db.density("Fe").unwrap(), 7.86, epsilon = 0.01);
     assert_relative_eq!(db.density("Au").unwrap(), 19.3, epsilon = 0.1);
+}
+
+#[test]
+fn test_unknown_molar_mass_and_density() {
+    let db = XrayDb::new();
+    assert!(matches!(
+        db.molar_mass("Xx"),
+        Err(XrayDbError::UnknownElement(_))
+    ));
+    assert!(matches!(
+        db.density("Xx"),
+        Err(XrayDbError::UnknownElement(_))
+    ));
 }
 
 #[test]
@@ -110,14 +138,26 @@ fn test_chantler_data_sample() {
 #[test]
 fn test_waasmaier_sample() {
     let db = XrayDb::new();
-    let fe = db
-        .raw()
-        .waasmaier
-        .iter()
-        .find(|w| w.ion == "Fe")
-        .unwrap();
+    let fe = db.raw().waasmaier.iter().find(|w| w.ion == "Fe").unwrap();
 
     assert_eq!(fe.atomic_number, 26);
     assert_eq!(fe.scale.len(), 5);
     assert_eq!(fe.exponents.len(), 5);
+}
+
+#[test]
+fn test_concurrent_db_new_and_lookup() {
+    let mut handles = Vec::new();
+    for _ in 0..8 {
+        handles.push(thread::spawn(|| {
+            let db = XrayDb::new();
+            assert_eq!(db.atomic_number("Fe").unwrap(), 26);
+            assert_eq!(db.symbol("79").unwrap(), "Au");
+            assert!(db.molar_mass("Si").unwrap() > 28.0);
+        }));
+    }
+
+    for handle in handles {
+        handle.join().unwrap();
+    }
 }

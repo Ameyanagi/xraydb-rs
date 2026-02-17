@@ -1,5 +1,5 @@
 use approx::assert_relative_eq;
-use xraydb::XrayDb;
+use xraydb::{XrayDb, XrayDbError};
 
 #[test]
 fn test_f0_fe_q0() {
@@ -31,7 +31,7 @@ fn test_f0_ions_for_element() {
     let db = XrayDb::new();
     let fe_ions = db.f0_ions(Some("Fe")).unwrap();
     assert!(fe_ions.contains(&"Fe"));
-    assert!(fe_ions.len() >= 1);
+    assert!(!fe_ions.is_empty());
 }
 
 #[test]
@@ -75,7 +75,7 @@ fn test_xray_lines_fe() {
 fn test_xray_lines_initial_level() {
     let db = XrayDb::new();
     let k_lines = db.xray_lines("Fe", Some("K"), None).unwrap();
-    for (_, line) in &k_lines {
+    for line in k_lines.values() {
         assert_eq!(line.initial_level, "K");
     }
 }
@@ -85,7 +85,7 @@ fn test_xray_lines_excitation_energy() {
     let db = XrayDb::new();
     // Only lines excitable below 2000 eV (no K lines for Fe)
     let lines = db.xray_lines("Fe", None, Some(2000.0)).unwrap();
-    for (name, _) in &lines {
+    for name in lines.keys() {
         assert!(
             !name.starts_with('K'),
             "K lines should not be excitable below 2keV: {name}"
@@ -117,7 +117,7 @@ fn test_ck_probability() {
     let prob = db.ck_probability("Cu", "L1", "L2", false);
     // This may or may not exist for Cu; just test it doesn't panic
     if let Ok(p) = prob {
-        assert!(p >= 0.0 && p <= 1.0);
+        assert!((0.0..=1.0).contains(&p));
     }
 }
 
@@ -150,4 +150,53 @@ fn test_compton_energies() {
     assert!(ce.xray_mean > 0.0);
     assert!(ce.electron_mean > 0.0);
     assert!(ce.electron_mean < 10000.0);
+}
+
+#[test]
+fn test_xray_edge_unknown_edge() {
+    let db = XrayDb::new();
+    assert!(matches!(
+        db.xray_edge("Fe", "Q"),
+        Err(XrayDbError::UnknownEdge { .. })
+    ));
+}
+
+#[test]
+fn test_xray_lines_unknown_element() {
+    let db = XrayDb::new();
+    assert!(matches!(
+        db.xray_lines("Xx", None, None),
+        Err(XrayDbError::UnknownElement(_))
+    ));
+}
+
+#[test]
+fn test_core_width_unknown_cases() {
+    let db = XrayDb::new();
+    assert!(matches!(
+        db.core_width("Fe", Some("Q")),
+        Err(XrayDbError::UnknownEdge { .. })
+    ));
+    assert!(matches!(
+        db.core_width("Xx", None),
+        Err(XrayDbError::UnknownElement(_))
+    ));
+}
+
+#[test]
+fn test_ionization_potential_unknown_gas() {
+    let db = XrayDb::new();
+    assert!(matches!(
+        db.ionization_potential("unobtainium gas"),
+        Err(XrayDbError::UnknownGas(_))
+    ));
+}
+
+#[test]
+fn test_ck_probability_unknown_element() {
+    let db = XrayDb::new();
+    assert!(matches!(
+        db.ck_probability("Xx", "L1", "L2", false),
+        Err(XrayDbError::UnknownElement(_))
+    ));
 }

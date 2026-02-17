@@ -41,7 +41,9 @@ pub fn symbol(element: &str) -> Result<String, JsError> {
 
 #[wasm_bindgen]
 pub fn atomic_name(element: &str) -> Result<String, JsError> {
-    db().atomic_name(element).map(|s| s.to_string()).map_err(to_js)
+    db().atomic_name(element)
+        .map(|s| s.to_string())
+        .map_err(to_js)
 }
 
 #[wasm_bindgen]
