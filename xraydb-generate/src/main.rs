@@ -110,6 +110,7 @@ fn main() {
     let out_path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .unwrap()
+        .join("xraydb-lib")
         .join("data")
         .join("xraydb.bin.zst");
 

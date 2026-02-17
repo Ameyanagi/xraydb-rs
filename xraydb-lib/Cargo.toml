@@ -1,16 +1,17 @@
 [package]
 name = "xraydb"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 authors = ["Ameyanagi <contact@ameyanagi.com>"]
 description = "X-ray reference data for the elements"
 license = "MIT OR Apache-2.0"
+repository = "https://github.com/Ameyanagi/xraydb-rs"
 
 [features]
 optics = ["dep:num-complex"]
 
 [dependencies]
-xraydb-data = { path = "../xraydb-data" }
+xraydb-data = { version = "0.1.1", path = "../xraydb-data" }
 serde = { version = "1", default-features = false, features = ["derive", "alloc"] }
 postcard = { version = "1", default-features = false, features = ["alloc"] }
 ruzstd = { version = "0.8" }

@@ -5,7 +5,7 @@ use xraydb_data::XrayDatabase;
 
 use crate::error::{Result, XrayDbError};
 
-const COMPRESSED_DATA: &[u8] = include_bytes!("../../data/xraydb.bin.zst");
+const COMPRESSED_DATA: &[u8] = include_bytes!("../data/xraydb.bin.zst");
 
 struct InitializedDb {
     data: XrayDatabase,

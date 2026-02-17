@@ -1,9 +1,11 @@
 [package]
 name = "xraydb-data"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 authors = ["Ameyanagi <contact@ameyanagi.com>"]
+description = "Data model types for xraydb"
 license = "MIT OR Apache-2.0"
+repository = "https://github.com/Ameyanagi/xraydb-rs"
 
 [dependencies]
 serde = { version = "1", default-features = false, features = ["derive", "alloc"] }
