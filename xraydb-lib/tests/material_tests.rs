@@ -1,3 +1,4 @@
+use approx::assert_relative_eq;
 use xraydb::{CrossSectionKind, XrayDb, XrayDbError};
 
 #[test]
@@ -30,6 +31,120 @@ fn test_material_mu_multiple_energies() {
     assert_eq!(mu.len(), 3);
     for val in &mu {
         assert!(*val > 0.0);
+    }
+}
+
+#[test]
+fn test_material_mu_supports_weight_percent_formula() {
+    let db = XrayDb::new();
+    let energies = vec![8000.0, 10000.0, 15000.0];
+    let mu = db
+        .material_mu("Ru1wt%SiO2", 2.65, &energies, CrossSectionKind::Total)
+        .unwrap();
+    assert_eq!(mu.len(), energies.len());
+    assert!(mu.iter().all(|v| v.is_finite() && *v > 0.0));
+}
+
+#[test]
+fn test_material_mu_fe2o3_formula_matches_mass_fraction_path() {
+    let db = XrayDb::new();
+    let energies = vec![5000.0, 10000.0, 20000.0];
+    let density = 5.24;
+
+    let by_formula = db
+        .material_mu("Fe2O3", density, &energies, CrossSectionKind::Total)
+        .unwrap();
+
+    let fe_mass = 2.0 * db.molar_mass("Fe").unwrap();
+    let o_mass = 3.0 * db.molar_mass("O").unwrap();
+    let total = fe_mass + o_mass;
+    let by_fractions = db
+        .material_mu_from_mass_fractions(
+            &[("Fe", fe_mass / total), ("O", o_mass / total)],
+            density,
+            &energies,
+            CrossSectionKind::Total,
+        )
+        .unwrap();
+
+    for (lhs, rhs) in by_formula.iter().zip(by_fractions.iter()) {
+        assert_relative_eq!(lhs, rhs, epsilon = 1e-12, max_relative = 1e-12);
+    }
+}
+
+#[test]
+fn test_material_mu_from_mass_fractions_normalizes_input() {
+    let db = XrayDb::new();
+    let energies = vec![5000.0, 10000.0, 20000.0];
+    let density = 5.24;
+
+    let mu_a = db
+        .material_mu_from_mass_fractions(
+            &[("Fe", 2.0), ("O", 3.0)],
+            density,
+            &energies,
+            CrossSectionKind::Total,
+        )
+        .unwrap();
+    let mu_b = db
+        .material_mu_from_mass_fractions(
+            &[("Fe", 20.0), ("O", 30.0)],
+            density,
+            &energies,
+            CrossSectionKind::Total,
+        )
+        .unwrap();
+
+    for (lhs, rhs) in mu_a.iter().zip(mu_b.iter()) {
+        assert_relative_eq!(lhs, rhs, epsilon = 1e-12, max_relative = 1e-12);
+    }
+}
+
+#[test]
+fn test_material_mu_density_validation() {
+    let db = XrayDb::new();
+    for density in [0.0, -1.0, f64::NAN, f64::INFINITY] {
+        let err = db
+            .material_mu("SiO2", density, &[10_000.0], CrossSectionKind::Total)
+            .unwrap_err();
+        assert!(matches!(err, XrayDbError::DataError(_)));
+    }
+}
+
+#[test]
+fn test_material_mu_from_mass_fractions_invalid_inputs() {
+    let db = XrayDb::new();
+
+    let err = db
+        .material_mu_from_mass_fractions(&[], 2.65, &[10_000.0], CrossSectionKind::Total)
+        .unwrap_err();
+    assert!(matches!(err, XrayDbError::DataError(_)));
+
+    let err = db
+        .material_mu_from_mass_fractions(
+            &[("Si", -0.1), ("O", 1.1)],
+            2.65,
+            &[10_000.0],
+            CrossSectionKind::Total,
+        )
+        .unwrap_err();
+    assert!(matches!(err, XrayDbError::DataError(_)));
+}
+
+#[test]
+fn test_material_mu_all_cross_section_kinds_are_finite() {
+    let db = XrayDb::new();
+    let kinds = [
+        CrossSectionKind::Total,
+        CrossSectionKind::Photo,
+        CrossSectionKind::Coherent,
+        CrossSectionKind::Incoherent,
+    ];
+
+    for kind in kinds {
+        let mu = db.material_mu("Fe2O3", 5.24, &[10_000.0], kind).unwrap();
+        assert!(mu[0].is_finite());
+        assert!(mu[0] > 0.0);
     }
 }
 
@@ -70,7 +185,7 @@ fn test_material_mu_invalid_formula() {
 fn test_material_mu_unknown_element_symbol_is_error() {
     let db = XrayDb::new();
     let err = db
-        .material_mu("SiUnh", 2.3, &[10_000.0], CrossSectionKind::Total)
+        .material_mu("SiNh", 2.3, &[10_000.0], CrossSectionKind::Total)
         .unwrap_err();
     assert!(matches!(err, XrayDbError::UnknownElement(_)));
 }

@@ -146,6 +146,45 @@ pub fn material_mu(
         .map_err(to_js)
 }
 
+/// Returns material linear attenuation coefficient (1/cm) from elemental mass fractions.
+///
+/// `symbols` and `fractions` must have the same length.
+/// `kind` is one of: "total", "photo", "coherent", "incoherent".
+#[wasm_bindgen]
+pub fn material_mu_from_mass_fractions(
+    symbols: Box<[JsValue]>,
+    fractions: &[f64],
+    density: f64,
+    energies: &[f64],
+    kind: &str,
+) -> Result<Vec<f64>, JsError> {
+    if symbols.len() != fractions.len() {
+        return Err(JsError::new(&format!(
+            "symbols/fractions length mismatch: {} != {}",
+            symbols.len(),
+            fractions.len()
+        )));
+    }
+
+    let k = parse_kind(kind)?;
+    let mut composition = Vec::with_capacity(symbols.len());
+
+    for (i, symbol) in symbols.iter().enumerate() {
+        let symbol = symbol
+            .as_string()
+            .ok_or_else(|| JsError::new(&format!("symbols[{i}] is not a string")))?;
+        composition.push((symbol, fractions[i]));
+    }
+
+    let composition_refs: Vec<(&str, f64)> = composition
+        .iter()
+        .map(|(symbol, fraction)| (symbol.as_str(), *fraction))
+        .collect();
+
+    db().material_mu_from_mass_fractions(&composition_refs, density, energies, k)
+        .map_err(to_js)
+}
+
 /// Returns [delta, beta, attenuation_length_cm] for a material.
 ///
 /// The complex refractive index is n = 1 - delta - i*beta.
