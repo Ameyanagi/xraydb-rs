@@ -43,10 +43,38 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Check xraydb-data publish status
+        id: check_xraydb_data
+        run: |
+          set -euo pipefail
+          data_version=$(sed -n 's/^version = "\(.*\)"/\1/p' xraydb-data/Cargo.toml | head -n 1)
+          if [[ -z "${data_version}" ]]; then
+            echo "Failed to read xraydb-data version from Cargo.toml" >&2
+            exit 1
+          fi
+
+          status_code=$(curl -sS -o /tmp/xraydb_data_version.json -w "%{http_code}" \
+            "https://crates.io/api/v1/crates/xraydb-data/${data_version}")
+          if [[ "${status_code}" == "200" ]]; then
+            echo "published=true" >> "${GITHUB_OUTPUT}"
+          elif [[ "${status_code}" == "404" ]]; then
+            echo "published=false" >> "${GITHUB_OUTPUT}"
+          else
+            echo "Unexpected crates.io response while checking xraydb-data ${data_version}: HTTP ${status_code}" >&2
+            cat /tmp/xraydb_data_version.json >&2 || true
+            exit 1
+          fi
+          echo "version=${data_version}" >> "${GITHUB_OUTPUT}"
+
       - name: Publish xraydb-data
+        if: steps.check_xraydb_data.outputs.published != 'true'
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
         run: cargo publish -p xraydb-data --locked
+
+      - name: xraydb-data already published
+        if: steps.check_xraydb_data.outputs.published == 'true'
+        run: echo "xraydb-data ${{ steps.check_xraydb_data.outputs.version }} already exists on crates.io; skipping publish."
 
       - name: Wait for index propagation
         run: sleep 30

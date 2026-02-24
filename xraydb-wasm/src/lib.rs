@@ -152,7 +152,7 @@ pub fn material_mu(
 /// `kind` is one of: "total", "photo", "coherent", "incoherent".
 #[wasm_bindgen]
 pub fn material_mu_from_mass_fractions(
-    symbols: Box<[JsValue]>,
+    symbols: Vec<JsValue>,
     fractions: &[f64],
     density: f64,
     energies: &[f64],
