@@ -53,16 +53,11 @@ jobs:
             exit 1
           fi
 
-          status_code=$(curl -sS -o /tmp/xraydb_data_version.json -w "%{http_code}" \
-            "https://crates.io/api/v1/crates/xraydb-data/${data_version}")
-          if [[ "${status_code}" == "200" ]]; then
+          curl -sSfL "https://index.crates.io/xr/ay/xraydb-data" > /tmp/xraydb_data_index.jsonl
+          if grep -q "\"vers\":\"${data_version}\"" /tmp/xraydb_data_index.jsonl; then
             echo "published=true" >> "${GITHUB_OUTPUT}"
-          elif [[ "${status_code}" == "404" ]]; then
-            echo "published=false" >> "${GITHUB_OUTPUT}"
           else
-            echo "Unexpected crates.io response while checking xraydb-data ${data_version}: HTTP ${status_code}" >&2
-            cat /tmp/xraydb_data_version.json >&2 || true
-            exit 1
+            echo "published=false" >> "${GITHUB_OUTPUT}"
           fi
           echo "version=${data_version}" >> "${GITHUB_OUTPUT}"
 
