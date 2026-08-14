@@ -1,12 +1,17 @@
 [package]
 name = "xraydb-generate"
-version = "0.1.0"
-edition = "2024"
-authors = ["Ameyanagi <contact@ameyanagi.com>"]
-license = "MIT OR Apache-2.0"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Builds the compressed xraydb data blob from upstream XrayDB sources"
+publish = false
 
 [dependencies]
-xraydb-data = { path = "../xraydb-data" }
+xraydb-data = { workspace = true }
 postcard = { version = "1", features = ["alloc"] }
-zstd = "0.13"
-serde = { version = "1", features = ["derive"] }
+zstd = { workspace = true }
+serde = { workspace = true, features = ["std"] }
+anyhow = { workspace = true }

@@ -1,16 +1,18 @@
+//! Waasmaier–Kirfel elastic (Thomson) scattering factors, f0.
+
 use crate::db::XrayDb;
 use crate::error::{Result, XrayDbError};
 
 impl XrayDb {
-    /// Returns list of supported ion names for f0 calculations.
+    /// Ion names with tabulated f0 coefficients.
     ///
-    /// If `element` is provided, returns only ions for that element.
-    pub fn f0_ions(&self, element: Option<&str>) -> Result<Vec<&str>> {
-        let ions: Vec<&str> = match element {
+    /// If `element` is given, only that element's ions are returned (e.g. `Fe`, `Fe2+`,
+    /// `Fe3+`); otherwise every tabulated ion is returned.
+    pub fn f0_ions(&self, element: Option<&str>) -> Result<Vec<&'static str>> {
+        let ions: Vec<&'static str> = match element {
             Some(elem) => {
                 let sym = self.symbol(elem)?;
                 self.waasmaier_indices_by_symbol(sym)
-                    .unwrap_or(&[])
                     .iter()
                     .filter_map(|&idx| self.raw().waasmaier.get(idx).map(|w| w.ion.as_str()))
                     .collect()
@@ -25,26 +27,33 @@ impl XrayDb {
         Ok(ions)
     }
 
-    /// Returns f0 elastic X-ray scattering factor for an ion at given q values.
+    /// f0 elastic scattering factor for an ion at one momentum transfer.
     ///
-    /// q = sin(theta) / lambda in Angstroms^-1.
+    /// `q` is `sin(θ)/λ` in Å⁻¹, valid for `q` up to about 6 Å⁻¹.
     ///
-    /// Formula: f0(q) = c + sum_i(a_i * exp(-b_i * q^2))
-    /// where c = offset, a_i = scale, b_i = exponents.
+    /// f0(q) = c + Σᵢ aᵢ·exp(−bᵢ·q²)
+    pub fn f0_at(&self, ion: &str, q: f64) -> Result<f64> {
+        let record = self
+            .waasmaier_by_ion(ion)
+            .ok_or_else(|| XrayDbError::UnknownIon(ion.to_string()))?;
+        Ok(f0_from(record, q))
+    }
+
+    /// f0 at each of several `q` values. See [`XrayDb::f0_at`].
     pub fn f0(&self, ion: &str, q: &[f64]) -> Result<Vec<f64>> {
         let record = self
             .waasmaier_by_ion(ion)
             .ok_or_else(|| XrayDbError::UnknownIon(ion.to_string()))?;
-
-        Ok(q.iter()
-            .map(|&qi| {
-                let q2 = qi * qi;
-                let mut val = record.offset;
-                for (a, b) in record.scale.iter().zip(record.exponents.iter()) {
-                    val += a * (-b * q2).exp();
-                }
-                val
-            })
-            .collect())
+        Ok(q.iter().map(|&qi| f0_from(record, qi)).collect())
     }
+}
+
+#[inline]
+fn f0_from(record: &xraydb_data::WaasmaierRecord, q: f64) -> f64 {
+    let q2 = q * q;
+    let mut val = record.offset;
+    for (a, b) in record.scale.iter().zip(record.exponents.iter()) {
+        val += a * (-b * q2).exp();
+    }
+    val
 }

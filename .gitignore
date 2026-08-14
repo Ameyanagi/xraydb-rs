@@ -15,3 +15,9 @@ prd.json
 
 # Intermediate data files
 /data/xraydb_raw.json
+
+# Synced copy of the root README (kept in the package so include_str!/cargo publish work).
+# Regenerate with: cp README.md xraydb-lib/README.md
+
+# wasm-pack output
+/web/pkg

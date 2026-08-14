@@ -1,3 +1,16 @@
+//! Embedded materials table, ported from upstream XrayDB `materials.dat`.
+
+/// A named material with its chemical formula and nominal density.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Material {
+    /// Common name, lowercase (e.g. `"kapton"`).
+    pub name: &'static str,
+    /// Chemical formula, parseable by [`crate::chemparser::chemparse`].
+    pub formula: &'static str,
+    /// Nominal density in g/cm³.
+    pub density: f64,
+}
+
 /// Embedded materials database (from XrayDB materials.dat).
 ///
 /// Each entry: (name, density_g_per_cm3, formula)
@@ -111,21 +124,85 @@ pub(crate) const MATERIALS: &[(&str, f64, &str)] = &[
     ("zirconium", 6.5, "Zr"),
 ];
 
-/// Find a material by name (case-insensitive) or formula.
-/// Returns (formula, density).
-pub(crate) fn find_material(name: &str) -> Option<(&'static str, f64)> {
-    let lower = name.to_lowercase();
-    // Try by name first
+/// Find a material by name (case-insensitive) or by exact formula.
+pub(crate) fn find_material(name: &str) -> Option<Material> {
+    // Name first, so "silica" and "quartz" keep their distinct densities even though
+    // both are SiO2.
     for &(mat_name, density, formula) in MATERIALS {
-        if mat_name == lower {
-            return Some((formula, density));
+        if mat_name.eq_ignore_ascii_case(name) {
+            return Some(Material {
+                name: mat_name,
+                formula,
+                density,
+            });
         }
     }
-    // Try by formula
-    for &(_, density, formula) in MATERIALS {
+    for &(mat_name, density, formula) in MATERIALS {
         if formula.eq_ignore_ascii_case(name) {
-            return Some((formula, density));
+            return Some(Material {
+                name: mat_name,
+                formula,
+                density,
+            });
         }
     }
     None
+}
+
+/// Every material in the table, in declaration order (gases, solvents, polymers,
+/// ceramics, semiconductors, metals).
+pub(crate) fn all_materials() -> impl Iterator<Item = Material> {
+    MATERIALS.iter().map(|&(name, density, formula)| Material {
+        name,
+        formula,
+        density,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn lookup_by_name_is_case_insensitive() {
+        for query in ["kapton", "Kapton", "KAPTON"] {
+            let m = find_material(query).unwrap();
+            assert_eq!(m.name, "kapton");
+            assert_eq!(m.formula, "C22H10N2O5");
+        }
+    }
+
+    #[test]
+    fn lookup_by_formula_works() {
+        let m = find_material("CdTe").unwrap();
+        assert_eq!(m.name, "cadmium telluride");
+    }
+
+    #[test]
+    fn name_lookup_wins_over_formula_lookup() {
+        // Both "silica" and "quartz" are SiO2 but have different densities.
+        assert_eq!(find_material("quartz").unwrap().density, 2.65);
+        assert_eq!(find_material("silica").unwrap().density, 2.2);
+    }
+
+    #[test]
+    fn material_names_are_unique() {
+        let mut names: Vec<&str> = MATERIALS.iter().map(|&(n, _, _)| n).collect();
+        names.sort_unstable();
+        let before = names.len();
+        names.dedup();
+        assert_eq!(before, names.len(), "duplicate material name in table");
+    }
+
+    #[test]
+    fn all_densities_are_positive_and_finite() {
+        for m in all_materials() {
+            assert!(
+                m.density.is_finite() && m.density > 0.0,
+                "{} has density {}",
+                m.name,
+                m.density
+            );
+        }
+    }
 }

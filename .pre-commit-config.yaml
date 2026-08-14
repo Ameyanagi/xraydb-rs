@@ -1,0 +1,32 @@
+# Optional config for the `pre-commit` framework (https://pre-commit.com).
+# The native git hook in .githooks/pre-commit is the primary mechanism and needs
+# no extra tooling; install it with:
+#
+#     git config core.hooksPath .githooks
+#
+repos:
+  - repo: local
+    hooks:
+      - id: cargo-fmt
+        name: cargo fmt
+        entry: cargo fmt --all --check
+        language: system
+        types: [rust]
+        pass_filenames: false
+      - id: cargo-clippy
+        name: cargo clippy
+        entry: cargo clippy --workspace --all-targets --all-features -- -D warnings
+        language: system
+        types: [rust]
+        pass_filenames: false
+      - id: cargo-test
+        name: cargo test
+        entry: cargo test --workspace --all-features --no-fail-fast
+        language: system
+        types: [rust]
+        pass_filenames: false
+      - id: readme-sync
+        name: README sync
+        entry: sh -c 'cmp -s README.md xraydb-lib/README.md || { echo "run: cp README.md xraydb-lib/README.md"; exit 1; }'
+        language: system
+        pass_filenames: false

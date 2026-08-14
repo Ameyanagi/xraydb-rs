@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>xraydb-rs — X-ray reference data</title>
+<!-- Inline favicon: avoids a 404 round-trip and keeps the page self-contained. -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%232f6fd0'/%3E%3Ctext x='16' y='23' font-family='system-ui,sans-serif' font-size='19' font-weight='700' fill='white' text-anchor='middle'%3EX%3C/text%3E%3C/svg%3E">
+<style>
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff;
+  --panel: #f7f8fa;
+  --border: #dfe3e8;
+  --fg: #1c2024;
+  --muted: #667080;
+  --accent: #2f6fd0;
+  --grid: #e6e9ee;
+  --c1: #2f6fd0; --c2: #d1495b; --c3: #14868c;
+  --c4: #b07d2b; --c5: #7b5ea7; --c6: #3f8f4a;
+  --alkali: #f6d5d5; --alkaline: #f8e6cd; --transition: #d9e6f6;
+  --post: #dfe9dd; --metalloid: #d7e8e6; --nonmetal: #dde4f2;
+  --halogen: #e6ddf2; --noble: #f2ddea; --lanthanide: #e8e2d0; --actinide: #e5dbe0;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14171b; --panel: #1c2026; --border: #2c323a; --fg: #e6e9ee;
+    --muted: #98a2b3; --accent: #6ba4f8; --grid: #262c34;
+    --c1: #6ba4f8; --c2: #f2788b; --c3: #4dc3c9;
+    --c4: #e0ac5a; --c5: #b598e0; --c6: #6cc47a;
+    --alkali: #4a3234; --alkaline: #4a3d2c; --transition: #2c3a4d;
+    --post: #33402f; --metalloid: #2b4240; --nonmetal: #303748;
+    --halogen: #3a3048; --noble: #45303e; --lanthanide: #423c30; --actinide: #3f333a;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: 1.5rem;
+  background: var(--bg); color: var(--fg);
+  font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+h1 { font-size: 1.35rem; margin: 0; }
+h2 { font-size: 0.95rem; margin: 0 0 0.6rem; letter-spacing: 0.02em; text-transform: uppercase; color: var(--muted); }
+header { display: flex; align-items: baseline; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
+header .sub { color: var(--muted); font-size: 0.9rem; }
+main { max-width: 1240px; margin: 0 auto; display: grid; gap: 1.25rem; }
+.panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 1rem; }
+
+/* Periodic table */
+#ptable {
+  display: grid;
+  grid-template-columns: repeat(18, minmax(0, 1fr));
+  gap: 3px;
+  min-width: 720px;
+}
+.ptable-scroll { overflow-x: auto; }
+.el {
+  position: relative; aspect-ratio: 1 / 1;
+  border: 1px solid transparent; border-radius: 4px;
+  background: var(--transition); color: var(--fg);
+  font: inherit; cursor: pointer; padding: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  transition: transform 0.06s ease, box-shadow 0.06s ease;
+}
+.el:hover { transform: translateY(-1px); box-shadow: 0 2px 6px rgba(0,0,0,0.18); }
+.el:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.el-active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+.el-z { font-size: 0.55rem; color: var(--muted); line-height: 1; }
+.el-sym { font-size: 0.85rem; font-weight: 600; line-height: 1.1; }
+.el-nodata { opacity: 0.4; }
+.el-alkali { background: var(--alkali); } .el-alkaline { background: var(--alkaline); }
+.el-transition { background: var(--transition); } .el-post { background: var(--post); }
+.el-metalloid { background: var(--metalloid); } .el-nonmetal { background: var(--nonmetal); }
+.el-halogen { background: var(--halogen); } .el-noble { background: var(--noble); }
+.el-lanthanide { background: var(--lanthanide); } .el-actinide { background: var(--actinide); }
+.fblock-label { font-size: 0.6rem; color: var(--muted); align-self: center; text-align: center; }
+
+/* Detail columns */
+.detail { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.25rem; }
+@media (min-width: 1000px) { .detail { grid-template-columns: 300px minmax(0, 1fr); } }
+dl { margin: 0; display: grid; gap: 0.35rem; }
+dl > div { display: flex; justify-content: space-between; gap: 1rem; }
+dt { color: var(--muted); } dd { margin: 0; font-variant-numeric: tabular-nums; }
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+caption { text-align: left; color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.03em; padding-bottom: 0.35rem; }
+th, td { text-align: right; padding: 0.2rem 0.4rem; border-bottom: 1px solid var(--border); }
+thead th { color: var(--muted); font-weight: 500; font-size: 0.75rem; }
+tbody th { text-align: left; font-weight: 600; }
+.tables { display: grid; gap: 1rem; }
+.scroll-y { max-height: 260px; overflow-y: auto; }
+.group-row th { text-align: left; padding-top: 0.5rem; color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
+
+/* Controls */
+.controls { display: flex; flex-wrap: wrap; gap: 1rem 1.5rem; align-items: flex-end; margin-bottom: 0.75rem; }
+.field { display: flex; flex-direction: column; gap: 0.25rem; }
+.field label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
+input[type="number"] {
+  width: 8.5rem; padding: 0.3rem 0.45rem; font: inherit; font-variant-numeric: tabular-nums;
+  background: var(--bg); color: var(--fg); border: 1px solid var(--border); border-radius: 5px;
+}
+.checks { display: flex; flex-wrap: wrap; gap: 0.35rem 0.9rem; }
+.checks label { display: flex; align-items: center; gap: 0.3rem; font-size: 0.85rem; }
+button.preset {
+  padding: 0.3rem 0.7rem; font: inherit; font-size: 0.85rem; cursor: pointer;
+  background: var(--bg); color: var(--fg); border: 1px solid var(--border); border-radius: 5px;
+}
+button.preset:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Plot */
+#plot { width: 100%; height: auto; display: block; }
+.grid { stroke: var(--grid); stroke-width: 1; }
+.axis { stroke: var(--border); stroke-width: 1.5; }
+.tick { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.axis-label { fill: var(--muted); font-size: 12px; }
+.trace { fill: none; stroke-width: 1.8; stroke-linejoin: round; }
+.edge-rule { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; opacity: 0.7; }
+.edge-label { fill: var(--muted); font-size: 10px; }
+.crosshair { stroke: var(--accent); stroke-width: 1; opacity: 0.7; pointer-events: none; }
+.empty-text { fill: var(--muted); font-size: 13px; }
+#legend { display: flex; flex-wrap: wrap; gap: 0.35rem 1rem; font-size: 0.85rem; margin-top: 0.5rem; }
+.key { display: flex; align-items: center; gap: 0.35rem; }
+.key i { width: 14px; height: 3px; border-radius: 2px; }
+#readout { min-height: 1.4em; font-size: 0.85rem; color: var(--muted); font-variant-numeric: tabular-nums; margin-top: 0.35rem; }
+.empty { color: var(--muted); font-size: 0.85rem; margin: 0; }
+
+#boot-error { border-color: var(--c2); }
+#boot-error code { background: var(--bg); padding: 0.15rem 0.35rem; border-radius: 4px; }
+pre { overflow-x: auto; font-size: 0.8rem; color: var(--muted); margin: 0.5rem 0 0; }
+</style>
+</head>
+<body>
+
+<div class="panel" id="boot-error" hidden>
+  <h2>WebAssembly module not found</h2>
+  <p>Build it first, from the repository root:</p>
+  <p><code>wasm-pack build --target web --release xraydb-wasm --out-dir ../web/pkg</code></p>
+  <p>then serve this directory: <code>python3 -m http.server -d web 8080</code></p>
+  <pre id="boot-error-detail"></pre>
+</div>
+
+<div id="app">
+<header>
+  <h1>xraydb-rs</h1>
+  <span class="sub">X-ray reference data for the elements, in your browser</span>
+  <span class="sub" id="meta"></span>
+</header>
+
+<main>
+  <section class="panel">
+    <h2>Select an element</h2>
+    <div class="ptable-scroll">
+      <div id="ptable" role="group" aria-label="Periodic table" tabindex="0"></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2 id="el-title">—</h2>
+    <div class="detail">
+      <div class="tables">
+        <dl id="facts"></dl>
+        <div class="scroll-y" id="edges"></div>
+        <div class="scroll-y" id="lines"></div>
+      </div>
+
+      <div>
+        <div class="controls">
+          <div class="field">
+            <label for="emin">Energy min (eV)</label>
+            <input type="number" id="emin" value="1000" min="1" step="100">
+          </div>
+          <div class="field">
+            <label for="emax">Energy max (eV)</label>
+            <input type="number" id="emax" value="40000" min="2" step="1000">
+          </div>
+          <div class="field">
+            <label>Range presets</label>
+            <div style="display:flex;gap:0.4rem">
+              <button type="button" class="preset" id="preset-hard">Hard X-ray</button>
+              <button type="button" class="preset" id="preset-full">Full table</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>Traces</label>
+            <div class="checks">
+              <label><input type="checkbox" data-trace="total" checked> total</label>
+              <label><input type="checkbox" data-trace="photo"> photo</label>
+              <label><input type="checkbox" data-trace="coherent"> coherent</label>
+              <label><input type="checkbox" data-trace="incoherent"> incoherent</label>
+              <label><input type="checkbox" data-trace="f1"> f₁</label>
+              <label><input type="checkbox" data-trace="f2"> f₂</label>
+              <label><input type="checkbox" id="show-edges" checked> edge markers</label>
+            </div>
+          </div>
+        </div>
+
+        <svg id="plot" viewBox="0 0 900 460" role="img" aria-label="Cross-section plot"></svg>
+        <div id="legend"></div>
+        <div id="readout"></div>
+      </div>
+    </div>
+  </section>
+</main>
+</div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

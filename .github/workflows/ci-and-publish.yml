@@ -8,6 +8,9 @@ on:
     tags:
       - "v*"
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
   checks:
     name: Format, Lint, and Test
@@ -18,19 +21,95 @@ jobs:
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
 
       - name: Check formatting
         run: cargo fmt --all --check
 
-      - name: Run clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
+      - name: README stays in sync with the packaged copy
+        run: |
+          if ! cmp -s README.md xraydb-lib/README.md; then
+            echo "README.md and xraydb-lib/README.md differ." >&2
+            echo "The crate copy is what include_str! and cargo publish use." >&2
+            echo "Run: cp README.md xraydb-lib/README.md" >&2
+            diff -u README.md xraydb-lib/README.md || true
+            exit 1
+          fi
+
+      - name: Clippy (all features)
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+
+      - name: Clippy (no default features)
+        run: cargo clippy --workspace --all-targets --no-default-features -- -D warnings
 
       - name: Run tests
-        run: cargo test --all-features --no-fail-fast
+        run: cargo test --workspace --all-features --no-fail-fast
+
+      - name: Run tests (no default features)
+        run: cargo test --workspace --no-default-features --no-fail-fast
+
+  docs:
+    name: Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build docs with warnings denied
+        env:
+          RUSTDOCFLAGS: "-D warnings"
+        run: cargo doc --workspace --all-features --no-deps
+
+  msrv:
+    name: Minimum supported Rust version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read MSRV from Cargo.toml
+        id: msrv
+        run: |
+          version=$(sed -n 's/^rust-version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
+          if [ -z "$version" ]; then
+            echo "rust-version missing from [workspace.package]" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ steps.msrv.outputs.version }}
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo check --workspace --all-features
+
+  wasm:
+    name: WebAssembly
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Clippy for wasm32
+        run: cargo clippy -p xraydb-wasm --target wasm32-unknown-unknown --all-targets -- -D warnings
+      - name: Install wasm-pack
+        uses: jetli/wasm-pack-action@v0.4.0
+      - name: Build the browser bundle
+        run: wasm-pack build --target web --release xraydb-wasm --out-dir ../web/pkg
+      - name: Confirm the demo's expected files exist
+        run: |
+          test -f web/pkg/xraydb_wasm.js
+          test -f web/pkg/xraydb_wasm_bg.wasm
+          test -f web/index.html
+          test -f web/app.js
 
   publish:
     name: Publish to crates.io
-    needs: checks
+    needs: [checks, docs, msrv, wasm]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     environment: crates-io
@@ -47,9 +126,9 @@ jobs:
         id: check_xraydb_data
         run: |
           set -euo pipefail
-          data_version=$(sed -n 's/^version = "\(.*\)"/\1/p' xraydb-data/Cargo.toml | head -n 1)
+          data_version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
           if [[ -z "${data_version}" ]]; then
-            echo "Failed to read xraydb-data version from Cargo.toml" >&2
+            echo "Failed to read workspace version from Cargo.toml" >&2
             exit 1
           fi
 

@@ -1,12 +1,13 @@
+//! Coster–Kronig transition probabilities.
+
 use crate::db::XrayDb;
 use crate::error::{Result, XrayDbError};
 
 impl XrayDb {
-    /// Returns Coster-Kronig transition probability.
+    /// Coster–Kronig transition probability between two levels of the same shell.
     ///
-    /// If `total` is true, returns the total transition probability
-    /// (including via intermediate states). Otherwise returns the
-    /// direct transition probability.
+    /// With `total = true` this is the total probability including routes via
+    /// intermediate states; otherwise it is the direct transition probability.
     pub fn ck_probability(
         &self,
         element: &str,
@@ -16,21 +17,17 @@ impl XrayDb {
     ) -> Result<f64> {
         let sym = self.symbol(element)?;
         let record = self
-            .raw()
-            .coster_kronig
-            .iter()
-            .find(|ck| {
-                ck.element == sym && ck.initial_level == initial && ck.final_level == final_level
-            })
+            .coster_kronig_record(sym, initial, final_level)
             .ok_or_else(|| XrayDbError::UnknownEdge {
                 element: element.to_string(),
                 edge: format!("{initial}->{final_level}"),
+                available: Vec::new(),
             })?;
 
-        if total {
-            Ok(record.total_transition_probability)
+        Ok(if total {
+            record.total_transition_probability
         } else {
-            Ok(record.transition_probability)
-        }
+            record.transition_probability
+        })
     }
 }

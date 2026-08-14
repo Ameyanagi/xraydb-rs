@@ -3,22 +3,22 @@ use xraydb::XrayDb;
 #[cfg(feature = "optics")]
 mod optics {
     use super::*;
-    use xraydb::Polarization;
+    use xraydb::{CoatedMirrorParams, DarwinParams, MirrorParams, MultilayerParams, Polarization};
 
     #[test]
     fn test_darwin_width_si_111() {
         let db = XrayDb::new();
         let dw = db
-            .darwin_width(
-                10000.0,
-                "Si",
-                (1, 1, 1),
-                None,
-                Polarization::S,
-                false,
-                false,
-                1,
-            )
+            .darwin_width(DarwinParams {
+                energy: 10000.0,
+                crystal: "Si",
+                hkl: (1, 1, 1),
+                lattice_constant: None,
+                polarization: Polarization::S,
+                ignore_f1: false,
+                ignore_f2: false,
+                order: 1,
+            })
             .unwrap();
         let dw = dw.expect("Bragg condition should be satisfied at 10 keV");
 
@@ -53,31 +53,31 @@ mod optics {
     fn test_darwin_width_si_220() {
         let db = XrayDb::new();
         let dw = db
-            .darwin_width(
-                10000.0,
-                "Si",
-                (2, 2, 0),
-                None,
-                Polarization::S,
-                false,
-                false,
-                1,
-            )
+            .darwin_width(DarwinParams {
+                energy: 10000.0,
+                crystal: "Si",
+                hkl: (2, 2, 0),
+                lattice_constant: None,
+                polarization: Polarization::S,
+                ignore_f1: false,
+                ignore_f2: false,
+                order: 1,
+            })
             .unwrap();
         let dw = dw.expect("Bragg condition should be satisfied");
 
         // Si(220) at 10 keV: larger angle than (111)
         let dw_111 = db
-            .darwin_width(
-                10000.0,
-                "Si",
-                (1, 1, 1),
-                None,
-                Polarization::S,
-                false,
-                false,
-                1,
-            )
+            .darwin_width(DarwinParams {
+                energy: 10000.0,
+                crystal: "Si",
+                hkl: (1, 1, 1),
+                lattice_constant: None,
+                polarization: Polarization::S,
+                ignore_f1: false,
+                ignore_f2: false,
+                order: 1,
+            })
             .unwrap()
             .unwrap();
         assert!(dw.theta > dw_111.theta);
@@ -91,16 +91,16 @@ mod optics {
         let db = XrayDb::new();
         // Very low energy should make Bragg condition impossible
         let result = db
-            .darwin_width(
-                100.0,
-                "Si",
-                (1, 1, 1),
-                None,
-                Polarization::S,
-                false,
-                false,
-                1,
-            )
+            .darwin_width(DarwinParams {
+                energy: 100.0,
+                crystal: "Si",
+                hkl: (1, 1, 1),
+                lattice_constant: None,
+                polarization: Polarization::S,
+                ignore_f1: false,
+                ignore_f2: false,
+                order: 1,
+            })
             .unwrap();
         assert!(result.is_none());
     }
@@ -109,29 +109,29 @@ mod optics {
     fn test_darwin_width_p_polarization() {
         let db = XrayDb::new();
         let dw_s = db
-            .darwin_width(
-                10000.0,
-                "Si",
-                (1, 1, 1),
-                None,
-                Polarization::S,
-                false,
-                false,
-                1,
-            )
+            .darwin_width(DarwinParams {
+                energy: 10000.0,
+                crystal: "Si",
+                hkl: (1, 1, 1),
+                lattice_constant: None,
+                polarization: Polarization::S,
+                ignore_f1: false,
+                ignore_f2: false,
+                order: 1,
+            })
             .unwrap()
             .unwrap();
         let dw_p = db
-            .darwin_width(
-                10000.0,
-                "Si",
-                (1, 1, 1),
-                None,
-                Polarization::P,
-                false,
-                false,
-                1,
-            )
+            .darwin_width(DarwinParams {
+                energy: 10000.0,
+                crystal: "Si",
+                hkl: (1, 1, 1),
+                lattice_constant: None,
+                polarization: Polarization::P,
+                ignore_f1: false,
+                ignore_f2: false,
+                order: 1,
+            })
             .unwrap()
             .unwrap();
 
@@ -143,16 +143,16 @@ mod optics {
     fn test_darwin_width_ge() {
         let db = XrayDb::new();
         let dw = db
-            .darwin_width(
-                10000.0,
-                "Ge",
-                (1, 1, 1),
-                None,
-                Polarization::S,
-                false,
-                false,
-                1,
-            )
+            .darwin_width(DarwinParams {
+                energy: 10000.0,
+                crystal: "Ge",
+                hkl: (1, 1, 1),
+                lattice_constant: None,
+                polarization: Polarization::S,
+                ignore_f1: false,
+                ignore_f2: false,
+                order: 1,
+            })
             .unwrap();
         assert!(dw.is_some());
     }
@@ -166,7 +166,14 @@ mod optics {
             .collect();
 
         let refl = db
-            .mirror_reflectivity("Si", &theta, 10000.0, 2.33, 0.0, Polarization::S)
+            .mirror_reflectivity(MirrorParams {
+                formula: "Si",
+                theta: &theta,
+                energy: 10000.0,
+                density: 2.33,
+                roughness: 0.0,
+                polarization: Polarization::S,
+            })
             .unwrap();
 
         assert_eq!(refl.len(), theta.len());
@@ -188,12 +195,26 @@ mod optics {
         let theta: Vec<f64> = (1..50).map(|i| i as f64 * 0.5e-3).collect();
 
         let refl = db
-            .mirror_reflectivity("Pt", &theta, 10000.0, 21.45, 0.0, Polarization::S)
+            .mirror_reflectivity(MirrorParams {
+                formula: "Pt",
+                theta: &theta,
+                energy: 10000.0,
+                density: 21.45,
+                roughness: 0.0,
+                polarization: Polarization::S,
+            })
             .unwrap();
 
         // Pt has higher critical angle than Si
         let refl_si = db
-            .mirror_reflectivity("Si", &theta, 10000.0, 2.33, 0.0, Polarization::S)
+            .mirror_reflectivity(MirrorParams {
+                formula: "Si",
+                theta: &theta,
+                energy: 10000.0,
+                density: 2.33,
+                roughness: 0.0,
+                polarization: Polarization::S,
+            })
             .unwrap();
 
         // At intermediate angles, Pt should reflect more than Si
@@ -213,10 +234,24 @@ mod optics {
         let theta: Vec<f64> = (1..50).map(|i| i as f64 * 0.2e-3).collect();
 
         let smooth = db
-            .mirror_reflectivity("Si", &theta, 10000.0, 2.33, 0.0, Polarization::S)
+            .mirror_reflectivity(MirrorParams {
+                formula: "Si",
+                theta: &theta,
+                energy: 10000.0,
+                density: 2.33,
+                roughness: 0.0,
+                polarization: Polarization::S,
+            })
             .unwrap();
         let rough = db
-            .mirror_reflectivity("Si", &theta, 10000.0, 2.33, 5.0, Polarization::S)
+            .mirror_reflectivity(MirrorParams {
+                formula: "Si",
+                theta: &theta,
+                energy: 10000.0,
+                density: 2.33,
+                roughness: 5.0,
+                polarization: Polarization::S,
+            })
             .unwrap();
 
         // Roughness should reduce reflectivity
@@ -238,19 +273,19 @@ mod optics {
 
         // Simple W/Si bilayer, repeated 20 times on Si substrate
         let refl = db
-            .multilayer_reflectivity(
-                &["W", "Si"],
-                &[20.0, 20.0], // 20 Å each
-                "Si",
-                &theta,
-                10000.0,
-                20,
-                &[19.25, 2.33],
-                2.33,
-                0.0,
-                0.0,
-                Polarization::S,
-            )
+            .multilayer_reflectivity(MultilayerParams {
+                stackup: &["W", "Si"],
+                thickness: &[20.0, 20.0],
+                density: &[19.25, 2.33],
+                substrate: "Si",
+                substrate_density: 2.33,
+                theta: &theta,
+                energy: 10000.0,
+                n_periods: 20,
+                substrate_roughness: 0.0,
+                surface_roughness: 0.0,
+                polarization: Polarization::S,
+            })
             .unwrap();
 
         assert_eq!(refl.len(), theta.len());
@@ -266,19 +301,16 @@ mod optics {
         let theta: Vec<f64> = (1..50).map(|i| i as f64 * 0.2e-3).collect();
 
         let refl = db
-            .coated_reflectivity(
-                "Rh",
-                500.0, // 500 Å coating
-                "Si",
-                &theta,
-                10000.0,
-                12.41, // Rh density
-                0.0,
-                2.33, // Si density
-                0.0,
-                None,
-                Polarization::S,
-            )
+            .coated_reflectivity(CoatedMirrorParams {
+                coating: "Rh",
+                coating_thickness: 500.0,
+                coating_density: 12.41,
+                substrate: "Si",
+                substrate_density: 2.33,
+                theta: &theta,
+                energy: 10000.0,
+                ..Default::default()
+            })
             .unwrap();
 
         assert_eq!(refl.len(), theta.len());
@@ -292,17 +324,17 @@ mod optics {
 fn test_find_material() {
     let db = XrayDb::new();
 
-    let (formula, density) = db.find_material("water").unwrap();
-    assert_eq!(formula, "H2O");
-    assert!((density - 1.0).abs() < 1e-6);
+    let water = db.find_material("water").unwrap();
+    assert_eq!(water.formula, "H2O");
+    assert!((water.density - 1.0).abs() < 1e-6);
 
-    let (formula, density) = db.find_material("silicon").unwrap();
-    assert_eq!(formula, "Si");
-    assert!((density - 2.329).abs() < 0.01);
+    let silicon = db.find_material("silicon").unwrap();
+    assert_eq!(silicon.formula, "Si");
+    assert!((silicon.density - 2.329).abs() < 0.01);
 
-    let (formula, density) = db.find_material("kapton").unwrap();
-    assert_eq!(formula, "C22H10N2O5");
-    assert!((density - 1.42).abs() < 0.01);
+    let kapton = db.find_material("kapton").unwrap();
+    assert_eq!(kapton.formula, "C22H10N2O5");
+    assert!((kapton.density - 1.42).abs() < 0.01);
 
     // Case insensitive
     assert!(db.find_material("Water").is_some());

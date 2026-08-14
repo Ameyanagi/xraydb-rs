@@ -1,6 +1,9 @@
 use std::path::Path;
 
+use anyhow::{Result, bail};
 use xraydb_data::WaasmaierRecord;
+
+use crate::parsers::{field, read};
 
 /// Parse `waasmaeir_kirfel.dat` for f0 elastic scattering factors.
 ///
@@ -8,13 +11,13 @@ use xraydb_data::WaasmaierRecord;
 /// `#N 11`, `#L ...`, then a data line with 11 floats:
 ///   a1 a2 a3 a4 a5 c b1 b2 b3 b4 b5
 /// Stored as: offset=c, scale=[a1..a5], exponents=[b1..b5]
-pub fn parse_waasmaier(path: &Path) -> Vec<WaasmaierRecord> {
-    let content = std::fs::read_to_string(path).expect("failed to read waasmaier data");
+pub fn parse_waasmaier(path: &Path) -> Result<Vec<WaasmaierRecord>> {
+    let content = read(path)?;
     let lines: Vec<&str> = content.lines().collect();
 
     // Validate header
     if lines.len() < 2 || !lines[1].contains("Elastic Photon-Atom Scatt") {
-        panic!("Source file not recognized for f0_WaasKirf data");
+        bail!("{} is not recognized as f0_WaasKirf data", path.display());
     }
 
     let mut records = Vec::new();
@@ -25,7 +28,7 @@ pub fn parse_waasmaier(path: &Path) -> Vec<WaasmaierRecord> {
         if let Some(stripped) = line.strip_prefix("#S ") {
             let parts: Vec<&str> = stripped.split_whitespace().collect();
             if parts.len() >= 2 {
-                let atno: u16 = parts[0].parse().unwrap();
+                let atno: u16 = field(&parts, 0, "atomic number", line)?;
                 let ion = parts[1].to_string();
 
                 // Skip 3 lines (#N, #L, then data)
@@ -63,7 +66,7 @@ pub fn parse_waasmaier(path: &Path) -> Vec<WaasmaierRecord> {
         i += 1;
     }
 
-    records
+    Ok(records)
 }
 
 fn extract_element(ion: &str) -> String {

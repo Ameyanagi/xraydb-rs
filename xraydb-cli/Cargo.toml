@@ -1,0 +1,21 @@
+[package]
+name = "xraydb-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Command-line interface to the xraydb X-ray reference database"
+publish = false
+
+[[bin]]
+name = "xraydb"
+path = "src/main.rs"
+
+[dependencies]
+xraydb = { workspace = true, features = ["optics"] }
+anyhow = { workspace = true }
+clap = { workspace = true }
+serde = { workspace = true, features = ["std"] }
+serde_json = { workspace = true }

@@ -1,0 +1,47 @@
+#!/bin/sh
+# xraydb-rs pre-commit hook.
+#
+# Install with:   git config core.hooksPath .githooks
+# Skip once with: git commit --no-verify
+#
+# Runs the same checks CI does, in increasing order of cost, so the cheapest
+# failure surfaces first.
+
+set -eu
+
+info()  { printf '\033[1m[pre-commit]\033[0m %s\n' "$1"; }
+fail()  { printf '\033[1;31m[pre-commit]\033[0m %s\n' "$1" >&2; exit 1; }
+
+if ! command -v cargo >/dev/null 2>&1; then
+    fail "cargo not found on PATH"
+fi
+
+info "rustfmt"
+cargo fmt --all --check || fail "formatting issues — run 'cargo fmt --all'"
+
+info "README sync (root -> xraydb-lib)"
+if ! cmp -s README.md xraydb-lib/README.md; then
+    fail "README.md and xraydb-lib/README.md differ — run 'cp README.md xraydb-lib/README.md'"
+fi
+
+info "clippy (all targets, all features)"
+cargo clippy --workspace --all-targets --all-features -- -D warnings \
+    || fail "clippy found problems"
+
+info "clippy (no default features)"
+cargo clippy --workspace --all-targets --no-default-features -- -D warnings \
+    || fail "clippy found problems without default features"
+
+info "no unwrap/expect/unsafe outside tests"
+# The library lints enforce this at compile time; this catches new crates that
+# forget the crate-level attributes.
+for crate_root in xraydb-lib/src/lib.rs xraydb-wasm/src/lib.rs xraydb-cli/src/main.rs \
+                  xraydb-data/src/lib.rs xraydb-generate/src/main.rs; do
+    grep -q 'forbid(unsafe_code)' "$crate_root" \
+        || fail "$crate_root is missing #![forbid(unsafe_code)]"
+done
+
+info "tests"
+cargo test --workspace --all-features --no-fail-fast || fail "tests failed"
+
+info "all checks passed"
