@@ -176,6 +176,24 @@ xraydb commands --json      # every subcommand, argument, enum value, and defaul
 - Exit code is `0` on success and `1` on error. A broken pipe (`| head`) exits `0`.
 - Colour is only emitted to a TTY, and `NO_COLOR` disables it.
 
+## npm package
+
+The WASM bindings ship on npm as [`xraydb-wasm`](https://www.npmjs.com/package/xraydb-wasm) —
+self-contained (module + database + typed loader):
+
+```sh
+npm install xraydb-wasm
+```
+
+```js
+import initXraydb from 'xraydb-wasm/loader.mjs';
+const xraydb = await initXraydb();
+xraydb.atomic_number('Fe');   // 26
+```
+
+Publish a new version with `./xraydb-wasm/build-pkg.sh && cd web/pkg && npm publish`
+(the version follows the workspace's Cargo version).
+
 ## Browser demo
 
 A zero-dependency demo page with a periodic-table selector and live cross-section plots:
