@@ -58,8 +58,11 @@ jobs:
         # the featureless build never actually gets exercised.
         run: |
           set -eux
-          cargo test -p xraydb --no-default-features
-          cargo test -p xraydb --no-default-features --features zstd
+          # --lib --tests skips doctests: those document the default API, which needs
+          # `embedded-data`. Gating each one would leak `# #[cfg(...)]` lines into the
+          # README, which rustdoc hides but GitHub renders.
+          cargo test -p xraydb --no-default-features --lib --tests
+          cargo test -p xraydb --no-default-features --features zstd --lib --tests
           cargo check -p xraydb --no-default-features --features optics
           cargo check -p xraydb --no-default-features --features zstd,optics
 

@@ -294,11 +294,9 @@ impl XrayDb {
 /// supplied at runtime.
 ///
 /// ```
-/// # #[cfg(feature = "embedded-data")] {
 /// let water = xraydb::chemparser::chemparse("H2O")?;
 /// assert_eq!(water.get("H"), Some(2.0));
 /// assert_eq!(water.get("O"), Some(1.0));
-/// # }
 /// # Ok::<(), xraydb::XrayDbError>(())
 /// ```
 pub fn chemparse(formula: &str) -> Result<Composition> {

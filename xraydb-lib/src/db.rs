@@ -224,11 +224,9 @@ fn init_with(
 /// is free after the first call, and it is `Copy`, so pass it by value.
 ///
 /// ```
-/// # #[cfg(feature = "embedded-data")] {
 /// use xraydb::XrayDb;
 /// let db = XrayDb::try_new()?;
 /// assert_eq!(db.atomic_number("Fe")?, 26);
-/// # }
 /// # Ok::<(), xraydb::XrayDbError>(())
 /// ```
 ///
