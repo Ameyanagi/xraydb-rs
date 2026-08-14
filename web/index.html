@@ -4,8 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>xraydb-rs — X-ray reference data</title>
-<!-- Inline favicon: avoids a 404 round-trip and keeps the page self-contained. -->
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%232f6fd0'/%3E%3Ctext x='16' y='23' font-family='system-ui,sans-serif' font-size='19' font-weight='700' fill='white' text-anchor='middle'%3EX%3C/text%3E%3C/svg%3E">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="icons/icon-16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png">
+<link rel="manifest" href="site.webmanifest">
+<meta name="theme-color" content="#2f6fd0">
 <style>
 :root {
   color-scheme: light dark;
@@ -43,6 +46,7 @@ h1 { font-size: 1.35rem; margin: 0; }
 h2 { font-size: 0.95rem; margin: 0 0 0.6rem; letter-spacing: 0.02em; text-transform: uppercase; color: var(--muted); }
 header { display: flex; align-items: baseline; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
 header .sub { color: var(--muted); font-size: 0.9rem; }
+.brand-mark { border-radius: 7px; align-self: center; }
 main { max-width: 1240px; margin: 0 auto; display: grid; gap: 1.25rem; }
 .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 1rem; }
 
@@ -140,6 +144,7 @@ pre { overflow-x: auto; font-size: 0.8rem; color: var(--muted); margin: 0.5rem 0
 
 <div id="app">
 <header>
+  <img src="icons/icon-192.png" alt="" width="34" height="34" class="brand-mark">
   <h1>xraydb-rs</h1>
   <span class="sub">X-ray reference data for the elements, in your browser</span>
   <span class="sub" id="meta"></span>

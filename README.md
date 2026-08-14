@@ -1,3 +1,5 @@
+<img src="https://raw.githubusercontent.com/Ameyanagi/xraydb-rs/main/assets/icon-512.png" alt="" width="88" align="left" hspace="12">
+
 # xraydb-rs
 
 X-ray reference data for the elements in Rust. A pure-Rust port of the [XrayDB](https://github.com/xraypy/XrayDB) project.
