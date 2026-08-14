@@ -290,14 +290,19 @@ impl XrayDb {
 /// Equivalent to [`XrayDb::parse_formula`]; provided as a free function for one-off use.
 /// The database is a lazily-initialised static, so this is cheap after first call.
 ///
+/// Uses [`XrayDb::current`], so it works whether the data is compiled in or was
+/// supplied at runtime.
+///
 /// ```
+/// # #[cfg(feature = "embedded-data")] {
 /// let water = xraydb::chemparser::chemparse("H2O")?;
 /// assert_eq!(water.get("H"), Some(2.0));
 /// assert_eq!(water.get("O"), Some(1.0));
+/// # }
 /// # Ok::<(), xraydb::XrayDbError>(())
 /// ```
 pub fn chemparse(formula: &str) -> Result<Composition> {
-    XrayDb::try_new()?.parse_formula(formula)
+    XrayDb::current()?.parse_formula(formula)
 }
 
 /// True if [`chemparse`] would succeed.
@@ -337,7 +342,7 @@ fn accumulate(node: &Node, weight: f64, out: &mut Vec<(String, f64)>) {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "embedded-data"))]
 mod tests {
     use super::*;
 

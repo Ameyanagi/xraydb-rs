@@ -52,6 +52,17 @@ jobs:
       - name: Run tests (no default features)
         run: cargo test --workspace --no-default-features --no-fail-fast
 
+      - name: Test feature combinations
+        # Scoped with -p: a workspace-wide --no-default-features is misleading, because
+        # xraydb-cli depends on xraydb with defaults on and cargo unifies features, so
+        # the featureless build never actually gets exercised.
+        run: |
+          set -eux
+          cargo test -p xraydb --no-default-features
+          cargo test -p xraydb --no-default-features --features zstd
+          cargo check -p xraydb --no-default-features --features optics
+          cargo check -p xraydb --no-default-features --features zstd,optics
+
   docs:
     name: Documentation
     runs-on: ubuntu-latest
@@ -63,6 +74,22 @@ jobs:
         env:
           RUSTDOCFLAGS: "-D warnings"
         run: cargo doc -p xraydb -p xraydb-data --all-features --no-deps
+
+  coverage:
+    name: Test coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@cargo-llvm-cov
+      - name: Measure library coverage
+        # Scoped to the library: xraydb-generate is a build tool and xraydb-wasm needs a
+        # JS runtime, so neither is exercised by `cargo test`. Gating on the workspace
+        # total would mostly measure those.
+        run: cargo llvm-cov -p xraydb --all-features --summary-only --fail-under-lines 90
 
   msrv:
     name: Minimum supported Rust version
@@ -109,7 +136,7 @@ jobs:
 
   publish:
     name: Publish to crates.io
-    needs: [checks, docs, msrv, wasm]
+    needs: [checks, coverage, docs, msrv, wasm]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     environment: crates-io

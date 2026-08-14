@@ -3,6 +3,8 @@
 //! Each test here corresponds to a defect that shipped in 0.1.2; they exist to keep
 //! those specific behaviours from coming back.
 
+#![cfg(feature = "embedded-data")]
+
 use xraydb::{CrossSectionKind, XrayDb};
 
 /// The materials table contains an `air` entry whose formula the 0.1.2 parser

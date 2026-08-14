@@ -211,6 +211,43 @@ Typical timings on an M-series Mac, release build (see `cargo bench`):
 | `xray_delta_beta` | ~1.1 µs |
 | `mu_elam` batch of 200 | ~7 µs |
 
+## Keeping the data out of your binary
+
+The database is compiled in by default, which costs about 3 MB. Turn the
+`embedded-data` feature off and supply the bytes at runtime instead:
+
+```toml
+[dependencies]
+xraydb = { version = "0.3", default-features = false, features = ["zstd"] }
+```
+
+```rust,ignore
+// Ship data/xraydb.bin.zst alongside your binary, or fetch it over the network.
+let bytes = std::fs::read("xraydb.bin.zst")?;
+let db = xraydb::XrayDb::load_compressed(&bytes)?;
+```
+
+Measured on a release binary that actually queries the database: **3.72 MB → 0.67 MB,
+82% smaller**. This matters most for WebAssembly, where the blob dominates the `.wasm`,
+and for embedded targets.
+
+`load_uncompressed` takes an already-decompressed postcard blob, letting you drop
+`ruzstd` entirely (`default-features = false` with no `zstd` feature) and decompress
+however you like.
+
+The database is global and initialised once — the first successful load wins, and later
+calls return that same database rather than replacing it. `XrayDb::current()` returns
+whatever is loaded (falling back to the embedded blob when that feature is on), which is
+what the crate's free functions use.
+
+### Features
+
+| Feature | Default | Effect |
+|---|---|---|
+| `embedded-data` | on | Compiles the ~3 MB database in; enables `XrayDb::new`/`try_new` |
+| `zstd` | on | zstd decompression; needed by `embedded-data` and `load_compressed` |
+| `optics` | off | Darwin widths, mirror and multilayer reflectivity |
+
 ## Minimum supported Rust version
 
 **1.87.** The crate's own code compiles on 1.85 (edition 2024's floor); the extra two

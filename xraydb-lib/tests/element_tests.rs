@@ -1,3 +1,5 @@
+#![cfg(feature = "embedded-data")]
+
 use std::thread;
 
 use approx::assert_relative_eq;
