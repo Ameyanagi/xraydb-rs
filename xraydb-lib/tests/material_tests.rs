@@ -1,3 +1,5 @@
+#![cfg(feature = "embedded-data")]
+
 use approx::assert_relative_eq;
 use xraydb::{CrossSectionKind, XrayDb, XrayDbError};
 

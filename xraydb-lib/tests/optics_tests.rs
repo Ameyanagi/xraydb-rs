@@ -1,3 +1,5 @@
+#![cfg(feature = "embedded-data")]
+
 use xraydb::XrayDb;
 
 #[cfg(feature = "optics")]

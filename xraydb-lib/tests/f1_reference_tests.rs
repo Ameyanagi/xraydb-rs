@@ -4,6 +4,8 @@
 //! upstream's own Python implementation (`uv run --with xraydb`); nothing here needs
 //! Python. See the fixture header for how the reference values are defined.
 
+#![cfg(feature = "embedded-data")]
+
 use xraydb::XrayDb;
 
 struct Case {

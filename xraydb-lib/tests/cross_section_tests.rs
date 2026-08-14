@@ -1,3 +1,5 @@
+#![cfg(feature = "embedded-data")]
+
 use xraydb::{ChantlerKind, CrossSectionKind, XrayDb, XrayDbError};
 
 #[test]

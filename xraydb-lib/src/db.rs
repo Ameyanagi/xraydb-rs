@@ -9,6 +9,11 @@ use crate::cubic_spline::natural_second_derivatives_dedup;
 use crate::error::{Result, XrayDbError};
 use crate::interp::safe_ln;
 
+/// The whole database, zstd-compressed, compiled into the binary.
+///
+/// This is ~3 MB. Disable the `embedded-data` feature to leave it out and supply the
+/// bytes yourself with [`XrayDb::load_compressed`] or [`XrayDb::load_uncompressed`].
+#[cfg(feature = "embedded-data")]
 const COMPRESSED_DATA: &[u8] = include_bytes!("../data/xraydb.bin.zst");
 
 /// Chantler tables pre-transformed into log space.
@@ -76,20 +81,23 @@ pub(crate) struct InitializedDb {
 
 static DATABASE: OnceLock<core::result::Result<InitializedDb, String>> = OnceLock::new();
 
-/// Decode the embedded blob. Separated out so the error path stays `?`-shaped.
-fn decode_embedded() -> core::result::Result<XrayDatabase, String> {
-    let mut decoder = ruzstd::decoding::StreamingDecoder::new(COMPRESSED_DATA)
+/// Decompress a zstd-compressed postcard blob into the data model.
+#[cfg(feature = "zstd")]
+fn decode_compressed(bytes: &[u8]) -> core::result::Result<XrayDatabase, String> {
+    let mut decoder = ruzstd::decoding::StreamingDecoder::new(bytes)
         .map_err(|e| format!("failed to create zstd decoder: {e}"))?;
     let mut decompressed = Vec::new();
     std::io::Read::read_to_end(&mut decoder, &mut decompressed)
-        .map_err(|e| format!("failed to decompress embedded database: {e}"))?;
-    postcard::from_bytes(&decompressed)
-        .map_err(|e| format!("failed to deserialize embedded database: {e}"))
+        .map_err(|e| format!("failed to decompress database: {e}"))?;
+    decode_uncompressed(&decompressed)
 }
 
-fn build() -> core::result::Result<InitializedDb, String> {
-    let data = decode_embedded()?;
+/// Decode an already-decompressed postcard blob into the data model.
+fn decode_uncompressed(bytes: &[u8]) -> core::result::Result<XrayDatabase, String> {
+    postcard::from_bytes(bytes).map_err(|e| format!("failed to deserialize database: {e}"))
+}
 
+fn build(data: XrayDatabase) -> core::result::Result<InitializedDb, String> {
     let mut symbol_to_z = HashMap::with_capacity(data.elements.len() * 2);
     let mut name_to_z = HashMap::with_capacity(data.elements.len() * 2);
     let mut z_to_element_idx = HashMap::with_capacity(data.elements.len());
@@ -196,8 +204,15 @@ fn build() -> core::result::Result<InitializedDb, String> {
     })
 }
 
-fn db() -> core::result::Result<&'static InitializedDb, &'static str> {
-    match DATABASE.get_or_init(build) {
+/// Initialise the global database from `data`, or return the already-initialised one.
+///
+/// First call wins. Later calls with different data return the existing database rather
+/// than replacing it, so a handle obtained earlier can never be invalidated.
+fn init_with(
+    data: impl FnOnce() -> core::result::Result<XrayDatabase, String>,
+) -> core::result::Result<&'static InitializedDb, &'static str> {
+    let slot = DATABASE.get_or_init(|| data().and_then(build));
+    match slot {
         Ok(inner) => Ok(inner),
         Err(msg) => Err(msg.as_str()),
     }
@@ -209,11 +224,19 @@ fn db() -> core::result::Result<&'static InitializedDb, &'static str> {
 /// is free after the first call, and it is `Copy`, so pass it by value.
 ///
 /// ```
+/// # #[cfg(feature = "embedded-data")] {
 /// use xraydb::XrayDb;
 /// let db = XrayDb::try_new()?;
 /// assert_eq!(db.atomic_number("Fe")?, 26);
+/// # }
 /// # Ok::<(), xraydb::XrayDbError>(())
 /// ```
+///
+/// # Supplying your own data
+///
+/// The `embedded-data` feature (on by default) compiles the ~3 MB database into the
+/// binary. Turn it off and load the bytes yourself — from a file, an HTTP fetch, or an
+/// asset bundle — with [`XrayDb::load_compressed`] or [`XrayDb::load_uncompressed`].
 #[derive(Clone, Copy)]
 pub struct XrayDb {
     db: &'static InitializedDb,
@@ -231,21 +254,90 @@ impl std::fmt::Debug for XrayDb {
 impl XrayDb {
     /// Open the database, decoding the embedded blob on first use.
     ///
+    /// Requires the `embedded-data` feature, which is on by default.
+    ///
     /// Returns [`XrayDbError::DataError`] if the embedded data cannot be decoded, which
     /// indicates a corrupted build rather than a caller mistake.
+    #[cfg(feature = "embedded-data")]
     pub fn try_new() -> Result<Self> {
-        match db() {
+        match init_with(|| decode_compressed(COMPRESSED_DATA)) {
             Ok(inner) => Ok(XrayDb { db: inner }),
             Err(msg) => Err(XrayDbError::DataError(msg.to_string())),
         }
     }
 
+    /// Open the database from a zstd-compressed blob you supply.
+    ///
+    /// Use this when the `embedded-data` feature is off, to keep the ~3 MB of data out
+    /// of your binary and fetch it at runtime instead. Pass the contents of
+    /// `xraydb-lib/data/xraydb.bin.zst`, or of any blob produced by `xraydb-generate`.
+    ///
+    /// The database is global and initialised once: the first successful call wins, and
+    /// later calls return that same database rather than replacing it, so handles
+    /// obtained earlier stay valid. Once loaded, `bytes` is **not examined at all** —
+    /// a later call with invalid data still succeeds. Use [`XrayDb::is_loaded`] if you
+    /// need to know whether your bytes were the ones used.
+    ///
+    /// Requires the `zstd` feature, which is on by default.
+    #[cfg(feature = "zstd")]
+    pub fn load_compressed(bytes: &[u8]) -> Result<Self> {
+        match init_with(|| decode_compressed(bytes)) {
+            Ok(inner) => Ok(XrayDb { db: inner }),
+            Err(msg) => Err(XrayDbError::DataError(msg.to_string())),
+        }
+    }
+
+    /// Open the database from an already-decompressed postcard blob.
+    ///
+    /// Lets you decompress with your own zstd implementation, or ship the data
+    /// uncompressed. Same first-call-wins semantics as [`XrayDb::load_compressed`].
+    pub fn load_uncompressed(bytes: &[u8]) -> Result<Self> {
+        match init_with(|| decode_uncompressed(bytes)) {
+            Ok(inner) => Ok(XrayDb { db: inner }),
+            Err(msg) => Err(XrayDbError::DataError(msg.to_string())),
+        }
+    }
+
+    /// True once the global database has been initialised by any constructor.
+    pub fn is_loaded() -> bool {
+        DATABASE.get().is_some()
+    }
+
+    /// The already-loaded database, falling back to the embedded blob.
+    ///
+    /// This is what the crate's free functions use, so they work whether the data was
+    /// compiled in or supplied at runtime. With `embedded-data` off and nothing loaded
+    /// yet, it returns an error telling the caller to load the data first.
+    pub fn current() -> Result<Self> {
+        if let Some(slot) = DATABASE.get() {
+            return match slot {
+                Ok(inner) => Ok(XrayDb { db: inner }),
+                Err(msg) => Err(XrayDbError::DataError(msg.clone())),
+            };
+        }
+        #[cfg(feature = "embedded-data")]
+        {
+            Self::try_new()
+        }
+        #[cfg(not(feature = "embedded-data"))]
+        {
+            Err(XrayDbError::DataError(
+                "no database loaded: this build has the `embedded-data` feature off, so \
+                 call XrayDb::load_compressed or XrayDb::load_uncompressed first"
+                    .to_string(),
+            ))
+        }
+    }
+
     /// Open the database, panicking if the embedded blob is corrupt.
+    ///
+    /// Requires the `embedded-data` feature, which is on by default.
     ///
     /// # Panics
     ///
     /// Panics if the compiled-in database fails to decompress or deserialize. This can
     /// only happen if the build is corrupt; use [`XrayDb::try_new`] to handle it.
+    #[cfg(feature = "embedded-data")]
     pub fn new() -> Self {
         match Self::try_new() {
             Ok(db) => db,
@@ -465,13 +557,14 @@ impl XrayDb {
     }
 }
 
+#[cfg(feature = "embedded-data")]
 impl Default for XrayDb {
     fn default() -> Self {
         Self::new()
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "embedded-data"))]
 mod tests {
     use super::*;
 

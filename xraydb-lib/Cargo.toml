@@ -14,13 +14,19 @@ categories = ["science", "data-structures"]
 exclude = ["/benches/**"]
 
 [features]
+default = ["embedded-data"]
+# Compile the ~3 MB database into the binary. Turn this off to supply the bytes at
+# runtime with XrayDb::load_compressed / load_uncompressed.
+embedded-data = ["zstd"]
+# zstd decompression, needed by the embedded blob and by load_compressed.
+zstd = ["dep:ruzstd"]
 optics = ["dep:num-complex"]
 
 [dependencies]
 xraydb-data = { workspace = true }
 serde = { workspace = true }
 postcard = { workspace = true }
-ruzstd = { workspace = true }
+ruzstd = { workspace = true, optional = true }
 thiserror = { workspace = true }
 num-complex = { workspace = true, optional = true }
 
