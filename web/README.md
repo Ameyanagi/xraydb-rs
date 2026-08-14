@@ -9,14 +9,17 @@ From the repository root:
 
 ```sh
 wasm-pack build --target web --release xraydb-wasm --out-dir ../web/pkg
-cp xraydb-lib/data/xraydb.bin.zst web/data/
 python3 -m http.server -d web 8080
 ```
 
-The WASM module is built without the embedded database (~350 KB instead of ~3.5 MB),
-and the page fetches `data/xraydb.bin.zst` in parallel with it — so the copy step
-above is required. Code and data are cached separately by the browser: editing the
-demo re-downloads 350 KB, not 3.5 MB.
+The WASM module is built without the embedded database (~350 KB instead of ~3.5 MB);
+the page fetches `data/xraydb.bin.zst` in parallel with it. `web/data/xraydb.bin.zst`
+is a committed symlink into `xraydb-lib/data/`, so it needs no copy step and can never
+lag a regenerated blob. Code and data are cached separately by the browser: editing
+the demo re-downloads 350 KB, not 3.5 MB.
+
+Deploying to a static host that does not follow symlinks? Replace the symlink with the
+real file: `cp xraydb-lib/data/xraydb.bin.zst web/data/`.
 
 Then open <http://localhost:8080>.
 
