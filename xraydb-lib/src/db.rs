@@ -264,10 +264,12 @@ impl XrayDb {
     /// resolve to 26.
     pub fn resolve_element(&self, element: &str) -> Result<u16> {
         // Atomic number, e.g. "26".
-        if let Ok(z) = element.parse::<u16>()
-            && self.db.z_to_element_idx.contains_key(&z)
-        {
-            return Ok(z);
+        // Not a let-chain: those need Rust 1.88, and the MSRV is lower on purpose.
+        #[allow(clippy::collapsible_if)]
+        if let Ok(z) = element.parse::<u16>() {
+            if self.db.z_to_element_idx.contains_key(&z) {
+                return Ok(z);
+            }
         }
 
         // Exact symbol/name first, so the common path allocates nothing.

@@ -2,7 +2,8 @@
 name = "xraydb-data"
 version.workspace = true
 edition.workspace = true
-rust-version.workspace = true
+# No zstd dependency here, so this crate keeps edition 2024's own floor.
+rust-version = "1.85"
 authors.workspace = true
 license.workspace = true
 repository.workspace = true

@@ -307,10 +307,12 @@ fn main() -> std::process::ExitCode {
         Ok(()) => std::process::ExitCode::SUCCESS,
         Err(err) => {
             // Broken pipe (e.g. `| head`) is a normal way for a CLI to end.
-            if let Some(io_err) = err.downcast_ref::<io::Error>()
-                && io_err.kind() == io::ErrorKind::BrokenPipe
-            {
-                return std::process::ExitCode::SUCCESS;
+            // Not a let-chain: those need Rust 1.88, and the MSRV is lower on purpose.
+            #[allow(clippy::collapsible_if)]
+            if let Some(io_err) = err.downcast_ref::<io::Error>() {
+                if io_err.kind() == io::ErrorKind::BrokenPipe {
+                    return std::process::ExitCode::SUCCESS;
+                }
             }
             report_error(format, &err);
             std::process::ExitCode::FAILURE
@@ -712,11 +714,13 @@ fn cmd_materials(
     let needle = filter.map(str::to_lowercase);
     let mut table = Table::new(&["name", "formula", "density_g_per_cm3"]);
     for m in db.materials() {
-        if let Some(ref needle) = needle
-            && !m.name.to_lowercase().contains(needle)
-            && !m.formula.to_lowercase().contains(needle)
-        {
-            continue;
+        // Not a let-chain: those need Rust 1.88, and the MSRV is lower on purpose.
+        #[allow(clippy::collapsible_if)]
+        if let Some(ref needle) = needle {
+            if !m.name.to_lowercase().contains(needle) && !m.formula.to_lowercase().contains(needle)
+            {
+                continue;
+            }
         }
         table.row(vec![
             m.name.to_string(),

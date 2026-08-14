@@ -14,10 +14,12 @@ impl XrayDb {
         let z = self.resolve_element(element)?;
         let indices = self.width_indices(z);
         for &idx in indices {
-            if let Some(w) = self.raw().corelevel_widths.get(idx)
-                && w.edge == edge
-            {
-                return Ok(w.width);
+            // Not a let-chain: those need Rust 1.88, and the MSRV is lower on purpose.
+            #[allow(clippy::collapsible_if)]
+            if let Some(w) = self.raw().corelevel_widths.get(idx) {
+                if w.edge == edge {
+                    return Ok(w.width);
+                }
             }
         }
         let available = indices
