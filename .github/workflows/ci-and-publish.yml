@@ -27,6 +27,11 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
 
+      - name: Cargo.lock is up to date
+        # The publish job runs with --locked, so a lockfile that lags a version bump
+        # fails there — after the tag has already been pushed. Catch it here instead.
+        run: cargo check --workspace --locked
+
       - name: Check formatting
         run: cargo fmt --all --check
 
