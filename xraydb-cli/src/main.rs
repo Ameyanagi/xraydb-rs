@@ -10,7 +10,7 @@ mod output;
 use std::io::{self, Write};
 
 use anyhow::{Context, Result, bail};
-use clap::{Parser, Subcommand, ValueEnum};
+use clap::{CommandFactory, Parser, Subcommand, ValueEnum};
 use serde::Serialize;
 
 use output::{Format, Table, num, write_record};
@@ -290,10 +290,19 @@ xraydb guess-edge --energy 7100 --edges K,L3 --tolerance 50")]
 
     /// Database provenance and size.
     Info,
+
+    /// Machine-readable description of every subcommand and its arguments.
+    ///
+    /// Intended for scripts and LLM agents that need to discover the interface
+    /// without parsing `--help` prose.
+    #[command(after_help = "EXAMPLE:\n  xraydb commands --json")]
+    Commands,
 }
 
 fn main() -> std::process::ExitCode {
     let cli = Cli::parse();
+    let format = cli.resolved_format();
+
     match run(&cli) {
         Ok(()) => std::process::ExitCode::SUCCESS,
         Err(err) => {
@@ -303,9 +312,29 @@ fn main() -> std::process::ExitCode {
             {
                 return std::process::ExitCode::SUCCESS;
             }
-            eprintln!("error: {err:#}");
+            report_error(format, &err);
             std::process::ExitCode::FAILURE
         }
+    }
+}
+
+/// Print a failure to stderr, as JSON when the caller asked for JSON.
+///
+/// A consumer that requested `--json` should not have to parse English prose off
+/// stderr to find out what went wrong.
+fn report_error(format: Format, err: &anyhow::Error) {
+    if format == Format::Json {
+        let chain: Vec<String> = err.chain().map(ToString::to_string).collect();
+        let payload = serde_json::json!({
+            "error": err.to_string(),
+            "context": chain,
+        });
+        match serde_json::to_string_pretty(&payload) {
+            Ok(text) => eprintln!("{text}"),
+            Err(_) => eprintln!("error: {err:#}"),
+        }
+    } else {
+        eprintln!("error: {err:#}");
     }
 }
 
@@ -383,6 +412,7 @@ fn run(cli: &Cli) -> Result<()> {
         ),
         Command::Compton { energy } => cmd_compton(&db, &mut out, format, *energy),
         Command::Info => cmd_info(&db, &mut out, format),
+        Command::Commands => cmd_commands(&mut out, format),
     }
 }
 
@@ -889,10 +919,92 @@ fn cmd_info(db: &XrayDb, out: &mut impl Write, format: Format) -> Result<()> {
     write_record(out, format, &pairs, &record)
 }
 
+/// One argument of one subcommand, as reported by `xraydb commands`.
+#[derive(Serialize)]
+struct ArgSpec {
+    name: String,
+    long: Option<String>,
+    short: Option<String>,
+    required: bool,
+    takes_value: bool,
+    /// Accepted values for enum-valued options, e.g. the cross-section kinds.
+    possible_values: Vec<String>,
+    default: Option<String>,
+    help: Option<String>,
+}
+
+/// One subcommand, as reported by `xraydb commands`.
+#[derive(Serialize)]
+struct CommandSpec {
+    name: String,
+    about: Option<String>,
+    args: Vec<ArgSpec>,
+}
+
+/// Describe the whole interface, so a caller can discover it without parsing help text.
+fn cmd_commands(out: &mut impl Write, format: Format) -> Result<()> {
+    let cli = Cli::command();
+    let specs: Vec<CommandSpec> = cli
+        .get_subcommands()
+        .map(|sub| CommandSpec {
+            name: sub.get_name().to_string(),
+            about: sub.get_about().map(ToString::to_string),
+            args: sub
+                .get_arguments()
+                .filter(|a| a.get_id() != "help")
+                .map(|a| ArgSpec {
+                    name: a.get_id().to_string(),
+                    long: a.get_long().map(ToString::to_string),
+                    short: a.get_short().map(|c| c.to_string()),
+                    required: a.is_required_set(),
+                    takes_value: matches!(
+                        a.get_action(),
+                        clap::ArgAction::Set | clap::ArgAction::Append
+                    ),
+                    possible_values: a
+                        .get_possible_values()
+                        .iter()
+                        .map(|v| v.get_name().to_string())
+                        .collect(),
+                    default: a
+                        .get_default_values()
+                        .first()
+                        .map(|v| v.to_string_lossy().into_owned()),
+                    help: a.get_help().map(ToString::to_string),
+                })
+                .collect(),
+        })
+        .collect();
+
+    match format {
+        Format::Json => writeln!(out, "{}", serde_json::to_string_pretty(&specs)?)?,
+        _ => {
+            let mut table = Table::new(&["command", "arguments", "description"]);
+            for spec in &specs {
+                let args: Vec<String> = spec
+                    .args
+                    .iter()
+                    .map(|a| match &a.long {
+                        Some(long) if a.takes_value => format!("--{long} <{}>", a.name),
+                        Some(long) => format!("--{long}"),
+                        None => format!("<{}>", a.name.to_uppercase()),
+                    })
+                    .collect();
+                table.row(vec![
+                    spec.name.clone(),
+                    args.join(" "),
+                    spec.about.clone().unwrap_or_default(),
+                ]);
+            }
+            table.write(out, format)?;
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use clap::CommandFactory;
 
     #[test]
     fn cli_definition_is_valid() {

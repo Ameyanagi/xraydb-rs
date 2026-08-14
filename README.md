@@ -140,6 +140,22 @@ xraydb materials
 
 Energies accept a single value, a comma list, `start:stop:step`, or `start:stop/count` (log-spaced). Add `--json` or `--csv` for machine-readable output.
 
+### For scripts and agents
+
+The CLI is designed to be driven programmatically as well as typed:
+
+```sh
+xraydb commands --json      # every subcommand, argument, enum value, and default
+```
+
+- `--json` works on **every** subcommand, including `commands` itself, so an agent can
+  discover the whole interface in one call instead of parsing `--help` prose.
+- With `--json`, **failures are also JSON**, written to stderr as
+  `{"error": "...", "context": [...]}`. Without it, errors stay plain text.
+- On failure stdout is left empty, so a consumer parsing stdout never sees partial output.
+- Exit code is `0` on success and `1` on error. A broken pipe (`| head`) exits `0`.
+- Colour is only emitted to a TTY, and `NO_COLOR` disables it.
+
 ## Browser demo
 
 A zero-dependency demo page with a periodic-table selector and live cross-section plots:
