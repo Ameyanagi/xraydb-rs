@@ -1,13 +1,25 @@
 //! WASM bindings for [`xraydb`].
 //!
-//! Build with:
+//! Build the distributable package with:
 //!
 //! ```sh
-//! wasm-pack build --target web --release xraydb-wasm --out-dir ../web/pkg
+//! ./xraydb-wasm/build-pkg.sh          # writes web/pkg/
 //! ```
 //!
-//! Call [`init`] once after loading the module to install a panic hook that turns any
-//! Rust panic into a readable JavaScript error.
+//! The script wraps `wasm-pack` and makes the output self-contained: the module is
+//! compiled **without** the embedded database (~350 KB instead of ~3.5 MB), and the
+//! data blob plus a `loader.mjs` are bundled in beside it. JavaScript consumers need
+//! one call:
+//!
+//! ```js
+//! import initXraydb from 'xraydb-wasm/loader.mjs';
+//! const xraydb = await initXraydb();      // fetches module + data in parallel
+//! xraydb.atomic_number('Fe');             // 26
+//! ```
+//!
+//! Driving the raw module instead? Call [`init`] (panic hook) and then
+//! [`load_database`] with the contents of `xraydb.bin.zst` before any query —
+//! every query fails with a "no database loaded" error until then.
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
