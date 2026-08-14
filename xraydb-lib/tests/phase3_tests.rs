@@ -96,11 +96,12 @@ fn test_xray_lines_excitation_energy() {
 #[test]
 fn test_guess_edge_fe_k() {
     let db = XrayDb::new();
-    let result = db.guess_edge(7112.0, None);
+    let result = db.guess_edge(7112.0, None, None);
     assert!(result.is_some());
-    let (elem, edge) = result.unwrap();
-    assert_eq!(elem, "Fe");
-    assert_eq!(edge, "K");
+    let guess = result.unwrap();
+    assert_eq!(guess.element, "Fe");
+    assert_eq!(guess.edge, "K");
+    assert_eq!(guess.difference, 0.0);
 }
 
 #[test]
@@ -188,7 +189,7 @@ fn test_ionization_potential_unknown_gas() {
     let db = XrayDb::new();
     assert!(matches!(
         db.ionization_potential("unobtainium gas"),
-        Err(XrayDbError::UnknownGas(_))
+        Err(XrayDbError::UnknownGas { .. })
     ));
 }
 

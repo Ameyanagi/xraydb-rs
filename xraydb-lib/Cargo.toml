@@ -1,28 +1,38 @@
 [package]
 name = "xraydb"
-version = "0.1.2"
-edition = "2024"
-authors = ["Ameyanagi <contact@ameyanagi.com>"]
-description = "X-ray reference data for the elements"
-license = "MIT OR Apache-2.0"
-repository = "https://github.com/Ameyanagi/xraydb-rs"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "X-ray reference data for the elements: absorption edges, emission lines, and Elam/Chantler cross-sections"
+readme = "README.md"
+documentation = "https://docs.rs/xraydb"
+keywords = ["xray", "physics", "spectroscopy", "crystallography", "science"]
+categories = ["science", "data-structures"]
+exclude = ["/benches/**"]
 
 [features]
 optics = ["dep:num-complex"]
 
 [dependencies]
-xraydb-data = { version = "0.1.1", path = "../xraydb-data" }
-serde = { version = "1", default-features = false, features = ["derive", "alloc"] }
-postcard = { version = "1", default-features = false, features = ["alloc"] }
-ruzstd = { version = "0.8" }
-num-complex = { version = "0.4", optional = true }
-chemical-formula = "0.1.1"
+xraydb-data = { workspace = true }
+serde = { workspace = true }
+postcard = { workspace = true }
+ruzstd = { workspace = true }
+thiserror = { workspace = true }
+num-complex = { workspace = true, optional = true }
 
 [dev-dependencies]
-approx = "0.5"
-num-complex = "0.4"
-criterion = "0.5"
+approx = { workspace = true }
+num-complex = { workspace = true }
+criterion = { workspace = true }
 
 [[bench]]
 name = "lookup_bench"
 harness = false
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

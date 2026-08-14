@@ -1,5 +1,8 @@
 use std::path::Path;
 
+use anyhow::{Result, bail};
+
+use crate::parsers::{field, read};
 use xraydb_data::{
     CosterKronigRecord, PhotoabsorptionRecord, ScatteringRecord, XrayLevelRecord,
     XrayTransitionRecord,
@@ -17,13 +20,13 @@ type ElamParseResult = (
 ///
 /// Uses a state-machine parser matching the Python `add_Elam` function.
 /// Returns (xray_levels, xray_transitions, coster_kronig, photoabsorption, scattering).
-pub fn parse_elam(path: &Path) -> ElamParseResult {
-    let content = std::fs::read_to_string(path).expect("failed to read elam.dat");
+pub fn parse_elam(path: &Path) -> Result<ElamParseResult> {
+    let content = read(path)?;
     let mut lines: Vec<&str> = content.lines().collect();
 
     // Validate header
     if lines.is_empty() || !lines[0].contains("Elam, Ravel, Sieber") {
-        panic!("Source file not recognized as Elam data");
+        bail!("{} is not recognized as Elam data", path.display());
     }
 
     // Skip comment lines at the start
@@ -52,9 +55,9 @@ pub fn parse_elam(path: &Path) -> ElamParseResult {
             let parts: Vec<&str> = line.split_whitespace().collect();
             // Edge label energy yield jump
             let label = parts[1];
-            let energy: f64 = parts[2].parse().unwrap();
-            let yield_: f64 = parts[3].parse().unwrap();
-            let jump: f64 = parts[4].parse().unwrap();
+            let energy: f64 = field(&parts, 2, "edge energy", line)?;
+            let yield_: f64 = field(&parts, 3, "fluorescence yield", line)?;
+            let jump: f64 = field(&parts, 4, "jump ratio", line)?;
 
             current_edge = label.to_string();
 
@@ -74,8 +77,8 @@ pub fn parse_elam(path: &Path) -> ElamParseResult {
                 if parts.len() >= 4 {
                     let iupac = parts[0];
                     let siegbahn = parts[1];
-                    let energy: f64 = parts[2].parse().unwrap();
-                    let intensity: f64 = parts[3].parse().unwrap();
+                    let energy: f64 = field(&parts, 2, "emission energy", line)?;
+                    let intensity: f64 = field(&parts, 3, "intensity", line)?;
 
                     // Split iupac on '-' to get initial/final levels
                     let (start, end) = if let Some(pos) = iupac.find('-') {
@@ -104,7 +107,7 @@ pub fn parse_elam(path: &Path) -> ElamParseResult {
             let mut j = 0;
             while j + 1 < temp.len() {
                 let final_level = temp[j].to_string();
-                let prob: f64 = temp[j + 1].parse().unwrap();
+                let prob: f64 = field(&temp, j + 1, "CK probability", line)?;
                 ck_pairs.push((final_level, prob));
                 j += 2;
             }
@@ -117,7 +120,7 @@ pub fn parse_elam(path: &Path) -> ElamParseResult {
                 let mut j = 0;
                 while j + 1 < temp.len() {
                     let final_level = temp[j].to_string();
-                    let total_prob: f64 = temp[j + 1].parse().unwrap();
+                    let total_prob: f64 = field(&temp, j + 1, "total CK probability", line)?;
                     total_pairs.push((final_level, total_prob));
                     j += 2;
                 }
@@ -198,11 +201,11 @@ pub fn parse_elam(path: &Path) -> ElamParseResult {
         idx += 1;
     }
 
-    (
+    Ok((
         xray_levels,
         xray_transitions,
         coster_kronig,
         photoabsorption,
         scattering,
-    )
+    ))
 }

@@ -1,12 +1,31 @@
 use std::collections::HashMap;
 use std::path::Path;
 
+use anyhow::{Context, Result, anyhow};
+
 use xraydb_data::{
     ComptonEnergiesRecord, CoreWidthRecord, ElementRecord, IonizationPotentialRecord, VersionRecord,
 };
 
-pub fn parse_version(path: &Path) -> Vec<VersionRecord> {
-    let content = std::fs::read_to_string(path).expect("failed to read Version.dat");
+/// Parse a whitespace-delimited field, reporting which file and line failed.
+pub fn field<T: std::str::FromStr>(parts: &[&str], idx: usize, what: &str, line: &str) -> Result<T>
+where
+    T::Err: std::fmt::Display,
+{
+    let raw = parts
+        .get(idx)
+        .with_context(|| format!("missing {what} (field {idx}) in line: {line}"))?;
+    raw.parse::<T>()
+        .map_err(|e| anyhow!("invalid {what} '{raw}' in line '{line}': {e}"))
+}
+
+/// Read a file, naming it in the error.
+pub fn read(path: &Path) -> Result<String> {
+    std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))
+}
+
+pub fn parse_version(path: &Path) -> Result<Vec<VersionRecord>> {
+    let content = read(path)?;
     let mut records = Vec::new();
     for line in content.lines() {
         if line.starts_with('#') || line.trim().len() < 3 {
@@ -21,11 +40,11 @@ pub fn parse_version(path: &Path) -> Vec<VersionRecord> {
             });
         }
     }
-    records
+    Ok(records)
 }
 
-pub fn parse_elements(path: &Path) -> Vec<ElementRecord> {
-    let content = std::fs::read_to_string(path).expect("failed to read elemental_data.txt");
+pub fn parse_elements(path: &Path) -> Result<Vec<ElementRecord>> {
+    let content = read(path)?;
     let mut records = Vec::new();
     for line in content.lines() {
         if line.starts_with('#') || line.trim().is_empty() {
@@ -34,19 +53,19 @@ pub fn parse_elements(path: &Path) -> Vec<ElementRecord> {
         let parts: Vec<&str> = line.split_whitespace().collect();
         if parts.len() >= 5 {
             records.push(ElementRecord {
-                atomic_number: parts[0].parse().unwrap(),
+                atomic_number: field(&parts, 0, "atomic number", line)?,
                 symbol: parts[1].to_string(),
                 name: parts[2].to_string(),
-                molar_mass: parts[3].parse().unwrap(),
-                density: parts[4].parse().unwrap(),
+                molar_mass: field(&parts, 3, "molar mass", line)?,
+                density: field(&parts, 4, "density", line)?,
             });
         }
     }
-    records
+    Ok(records)
 }
 
-pub fn parse_ionization_potentials(path: &Path) -> Vec<IonizationPotentialRecord> {
-    let content = std::fs::read_to_string(path).expect("failed to read ion_chamber_potentials.txt");
+pub fn parse_ionization_potentials(path: &Path) -> Result<Vec<IonizationPotentialRecord>> {
+    let content = read(path)?;
     let mut records = Vec::new();
     for line in content.lines() {
         if line.starts_with('#') || line.trim().len() < 2 {
@@ -55,16 +74,19 @@ pub fn parse_ionization_potentials(path: &Path) -> Vec<IonizationPotentialRecord
         let line = line.trim();
         let mut words: Vec<&str> = line.split_whitespace().collect();
         if words.len() >= 2 {
-            let potential: f64 = words.pop().unwrap().parse().unwrap();
+            let raw = words.pop().unwrap_or_default();
+            let potential: f64 = raw
+                .parse()
+                .map_err(|e| anyhow!("invalid ionization potential '{raw}' in '{line}': {e}"))?;
             let gas = words.join(" ");
             records.push(IonizationPotentialRecord { gas, potential });
         }
     }
-    records
+    Ok(records)
 }
 
-pub fn parse_compton_energies(path: &Path) -> ComptonEnergiesRecord {
-    let content = std::fs::read_to_string(path).expect("failed to read Compton_energies.txt");
+pub fn parse_compton_energies(path: &Path) -> Result<ComptonEnergiesRecord> {
+    let content = read(path)?;
     let mut incident = Vec::new();
     let mut xray_90deg = Vec::new();
     let mut xray_mean = Vec::new();
@@ -86,24 +108,24 @@ pub fn parse_compton_energies(path: &Path) -> ComptonEnergiesRecord {
         }
     }
 
-    ComptonEnergiesRecord {
+    Ok(ComptonEnergiesRecord {
         incident,
         xray_90deg,
         xray_mean,
         electron_mean,
-    }
+    })
 }
 
 pub fn parse_corehole_data(
     kk_path: &Path,
     ko_path: &Path,
-) -> (
+) -> Result<(
     Vec<CoreWidthRecord>,
     Vec<CoreWidthRecord>,
     Vec<CoreWidthRecord>,
-) {
+)> {
     // Parse Keski-Rahkonen and Krause
-    let kk_content = std::fs::read_to_string(kk_path).expect("failed to read KK data");
+    let kk_content = read(kk_path)?;
     let mut kk_records = Vec::new();
     for line in kk_content.lines() {
         if line.starts_with('#') || line.trim().is_empty() {
@@ -112,10 +134,10 @@ pub fn parse_corehole_data(
         let parts: Vec<&str> = line.split_whitespace().collect();
         if parts.len() >= 4 {
             kk_records.push(CoreWidthRecord {
-                atomic_number: parts[0].parse().unwrap(),
+                atomic_number: field(&parts, 0, "atomic number", line)?,
                 element: parts[1].to_string(),
                 edge: parts[2].to_string(),
-                width: parts[3].parse().unwrap(),
+                width: field(&parts, 3, "core width", line)?,
             });
         }
     }
@@ -135,7 +157,7 @@ pub fn parse_corehole_data(
     }
 
     // Parse Krause and Oliver
-    let ko_content = std::fs::read_to_string(ko_path).expect("failed to read KO data");
+    let ko_content = read(ko_path)?;
     let mut ko_records = Vec::new();
     for line in ko_content.lines() {
         if line.starts_with('#') || line.trim().is_empty() {
@@ -143,12 +165,12 @@ pub fn parse_corehole_data(
         }
         let parts: Vec<&str> = line.split_whitespace().collect();
         if parts.len() >= 6 {
-            let atno: u16 = parts[0].parse().unwrap();
+            let atno: u16 = field(&parts, 0, "atomic number", line)?;
             let elem = parts[1].to_string();
-            let kwid: f64 = parts[2].parse().unwrap();
-            let l1wid: f64 = parts[3].parse().unwrap();
-            let l2wid: f64 = parts[4].parse().unwrap();
-            let l3wid: f64 = parts[5].parse().unwrap();
+            let kwid: f64 = field(&parts, 2, "K width", line)?;
+            let l1wid: f64 = field(&parts, 3, "L1 width", line)?;
+            let l2wid: f64 = field(&parts, 4, "L2 width", line)?;
+            let l3wid: f64 = field(&parts, 5, "L3 width", line)?;
 
             for (edge, width) in [("K", kwid), ("L1", l1wid), ("L2", l2wid), ("L3", l3wid)] {
                 ko_records.push(CoreWidthRecord {
@@ -179,5 +201,5 @@ pub fn parse_corehole_data(
             .then_with(|| a.edge.cmp(&b.edge))
     });
 
-    (kk_records, ko_records, corelevel_vec)
+    Ok((kk_records, ko_records, corelevel_vec))
 }

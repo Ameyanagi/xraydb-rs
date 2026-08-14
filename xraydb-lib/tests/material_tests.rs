@@ -107,7 +107,7 @@ fn test_material_mu_density_validation() {
         let err = db
             .material_mu("SiO2", density, &[10_000.0], CrossSectionKind::Total)
             .unwrap_err();
-        assert!(matches!(err, XrayDbError::DataError(_)));
+        assert!(matches!(err, XrayDbError::InvalidInput(_)), "{err}");
     }
 }
 
@@ -118,7 +118,7 @@ fn test_material_mu_from_mass_fractions_invalid_inputs() {
     let err = db
         .material_mu_from_mass_fractions(&[], 2.65, &[10_000.0], CrossSectionKind::Total)
         .unwrap_err();
-    assert!(matches!(err, XrayDbError::DataError(_)));
+    assert!(matches!(err, XrayDbError::InvalidInput(_)), "{err}");
 
     let err = db
         .material_mu_from_mass_fractions(
@@ -128,7 +128,7 @@ fn test_material_mu_from_mass_fractions_invalid_inputs() {
             CrossSectionKind::Total,
         )
         .unwrap_err();
-    assert!(matches!(err, XrayDbError::DataError(_)));
+    assert!(matches!(err, XrayDbError::InvalidInput(_)), "{err}");
 }
 
 #[test]
@@ -151,7 +151,8 @@ fn test_material_mu_all_cross_section_kinds_are_finite() {
 #[test]
 fn test_xray_delta_beta_si() {
     let db = XrayDb::new();
-    let (delta, beta, atlen) = db.xray_delta_beta("Si", 2.33, 10000.0).unwrap();
+    let n = db.xray_delta_beta("Si", 2.33, 10000.0).unwrap();
+    let (delta, beta, atlen) = (n.delta, n.beta, n.attenuation_length_cm);
     // delta should be small and positive
     assert!(delta > 0.0, "delta = {delta}");
     assert!(delta < 1e-3, "delta = {delta}");
@@ -165,9 +166,11 @@ fn test_xray_delta_beta_si() {
 #[test]
 fn test_xray_delta_beta_au() {
     let db = XrayDb::new();
-    let (delta, beta, _atlen) = db.xray_delta_beta("Au", 19.3, 10000.0).unwrap();
+    let au = db.xray_delta_beta("Au", 19.3, 10000.0).unwrap();
+    let (delta, beta) = (au.delta, au.beta);
     // Gold has high Z, so delta and beta should be larger than Si
-    let (delta_si, beta_si, _) = db.xray_delta_beta("Si", 2.33, 10000.0).unwrap();
+    let si = db.xray_delta_beta("Si", 2.33, 10000.0).unwrap();
+    let (delta_si, beta_si) = (si.delta, si.beta);
     assert!(delta > delta_si);
     assert!(beta > beta_si);
 }
@@ -178,23 +181,23 @@ fn test_material_mu_invalid_formula() {
     let err = db
         .material_mu("co", 1.0, &[10_000.0], CrossSectionKind::Total)
         .unwrap_err();
-    assert!(matches!(err, XrayDbError::InvalidFormula(_)));
+    assert!(matches!(err, XrayDbError::InvalidFormula { .. }));
 }
 
 #[test]
 fn test_material_mu_unknown_element_symbol_is_error() {
     let db = XrayDb::new();
     let err = db
-        .material_mu("SiNh", 2.3, &[10_000.0], CrossSectionKind::Total)
+        .material_mu("SiXx", 2.3, &[10_000.0], CrossSectionKind::Total)
         .unwrap_err();
-    assert!(matches!(err, XrayDbError::UnknownElement(_)));
+    assert!(matches!(err, XrayDbError::InvalidFormula { .. }), "{err}");
 }
 
 #[test]
 fn test_xray_delta_beta_unknown_element_symbol_is_error() {
     let db = XrayDb::new();
-    let err = db.xray_delta_beta("FeUnh", 7.8, 10_000.0).unwrap_err();
-    assert!(matches!(err, XrayDbError::UnknownElement(_)));
+    let err = db.xray_delta_beta("FeXx", 7.8, 10_000.0).unwrap_err();
+    assert!(matches!(err, XrayDbError::InvalidFormula { .. }), "{err}");
 }
 
 #[test]
@@ -203,5 +206,5 @@ fn test_material_mu_named_requires_density_for_unknown_material() {
     let err = db
         .material_mu_named("unobtainium", &[10_000.0], CrossSectionKind::Total, None)
         .unwrap_err();
-    assert!(matches!(err, XrayDbError::DataError(_)));
+    assert!(matches!(err, XrayDbError::InvalidInput(_)), "{err}");
 }

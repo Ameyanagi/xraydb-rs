@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use anyhow::{Context, Result};
 use xraydb_data::ChantlerRecord;
 
 /// Parse Chantler data from per-element .dat files in a directory.
@@ -11,13 +12,13 @@ use xraydb_data::ChantlerRecord;
 ///   - Line 3 (comment): `# ... f2 = <mue_f2>`
 ///   - Further comment lines may contain relativistic/nuclear corrections
 ///   - Data lines: energy(keV)  f1(e/atom)  f2(e/atom)  mu_photo  mu_incoh  [mu_total]
-pub fn parse_chantler(dir: &Path) -> Vec<ChantlerRecord> {
+pub fn parse_chantler(dir: &Path) -> Result<Vec<ChantlerRecord>> {
     let mut records = Vec::new();
 
     for z in 1..=92u16 {
         let fname = dir.join(format!("{:02}.dat", z));
         let content = std::fs::read_to_string(&fname)
-            .unwrap_or_else(|_| panic!("failed to read Chantler file {:?}", fname));
+            .with_context(|| format!("reading Chantler file {}", fname.display()))?;
         let lines: Vec<&str> = content.lines().collect();
 
         // Line 1: extract element symbol and density
@@ -120,13 +121,13 @@ pub fn parse_chantler(dir: &Path) -> Vec<ChantlerRecord> {
         });
     }
 
-    records
+    Ok(records)
 }
 
 fn parse_chantler_line1(line: &str) -> (String, f64) {
     // Format: "Fe:    Z = 26;   Atomic weight = 55.84700 g/mol ;    nominal density:   [INLINE] = 7.8600E+00 g/cm3"
     // We need the element symbol (before ':') and density (second-to-last word before "g/cm3")
-    let elem = line.split(':').next().unwrap().trim().to_string();
+    let elem = line.split(':').next().unwrap_or(line).trim().to_string();
 
     // Find density: look for the pattern "= <number> g/cm3" near the end
     let mut words: Vec<&str> = line.split_whitespace().collect();

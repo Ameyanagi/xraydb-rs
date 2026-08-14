@@ -1,3 +1,5 @@
+//! Physical constants (CODATA 2018), in the units used throughout this crate.
+
 /// Avogadro's number (mol^-1)
 pub const AVOGADRO: f64 = 6.02214076e23;
 
