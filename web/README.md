@@ -9,8 +9,14 @@ From the repository root:
 
 ```sh
 wasm-pack build --target web --release xraydb-wasm --out-dir ../web/pkg
+cp xraydb-lib/data/xraydb.bin.zst web/data/
 python3 -m http.server -d web 8080
 ```
+
+The WASM module is built without the embedded database (~350 KB instead of ~3.5 MB),
+and the page fetches `data/xraydb.bin.zst` in parallel with it — so the copy step
+above is required. Code and data are cached separately by the browser: editing the
+demo re-downloads 350 KB, not 3.5 MB.
 
 Then open <http://localhost:8080>.
 
@@ -29,6 +35,12 @@ command to run rather than failing silently.
   plus f₁ and f₂ on a linear right-hand axis, over a user-set energy range. Absorption
   edges are drawn as labelled vertical rules. Hovering reads out the values at that
   energy.
+- **Search and deep links** — type `Fe`, `iron`, or `26` in the search box; the selected
+  element lives in the URL hash (`#Au`), so views are bookmarkable and shareable.
+- **Compounds & materials** — pick from the built-in materials table or type any formula
+  (`H2O`, `Fe2O3`, `Ru1wt%SiO2`); shows µ, attenuation length, δ/β, and the critical
+  angle at a chosen energy, plus a µ-vs-energy plot. Invalid formulas get an inline
+  error rather than a blank panel.
 
 Everything is inline SVG and vanilla ES modules — no charting library, no CDN, no
 bundler. The `.wasm` is ~3.5 MB because it embeds the entire compressed database, so the

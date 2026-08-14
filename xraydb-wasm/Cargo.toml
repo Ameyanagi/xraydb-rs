@@ -13,7 +13,11 @@ publish = false
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-xraydb = { workspace = true }
+# default-features off keeps the ~3 MB database out of the .wasm; the demo fetches
+# it separately, so the browser streams a small code module and caches the data on
+# its own schedule. Declared directly (not workspace = true) because a member cannot
+# turn default features off on an inherited workspace dependency.
+xraydb = { path = "../xraydb-lib", default-features = false, features = ["zstd"] }
 wasm-bindgen = { workspace = true }
 js-sys = { workspace = true }
 console_error_panic_hook = { workspace = true }

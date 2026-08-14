@@ -82,7 +82,7 @@ main { max-width: 1240px; margin: 0 auto; display: grid; gap: 1.25rem; }
 /* Detail columns */
 .detail { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.25rem; }
 @media (min-width: 1000px) { .detail { grid-template-columns: 300px minmax(0, 1fr); } }
-dl { margin: 0; display: grid; gap: 0.35rem; }
+dl { margin: 0; display: grid; gap: 0.35rem; align-content: start; }
 dl > div { display: flex; justify-content: space-between; gap: 1rem; }
 dt { color: var(--muted); } dd { margin: 0; font-variant-numeric: tabular-nums; }
 table { width: 100%; border-collapse: collapse; font-size: 0.85rem; font-variant-numeric: tabular-nums; }
@@ -127,6 +127,21 @@ button.preset:hover { border-color: var(--accent); color: var(--accent); }
 #readout { min-height: 1.4em; font-size: 0.85rem; color: var(--muted); font-variant-numeric: tabular-nums; margin-top: 0.35rem; }
 .empty { color: var(--muted); font-size: 0.85rem; margin: 0; }
 
+.panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+#el-search {
+  width: 12rem; padding: 0.35rem 0.6rem; font: inherit;
+  background: var(--bg); color: var(--fg); border: 1px solid var(--border); border-radius: 6px;
+}
+#el-search.miss { border-color: var(--c2); }
+input[type="text"], select {
+  padding: 0.3rem 0.45rem; font: inherit;
+  background: var(--bg); color: var(--fg); border: 1px solid var(--border); border-radius: 5px;
+}
+#mat-formula { width: 12rem; font-variant-ligatures: none; }
+#mat-formula.invalid { border-color: var(--c2); }
+#mat-plot { width: 100%; height: auto; display: block; }
+.key-row { display: flex; flex-wrap: wrap; gap: 0.35rem 1rem; font-size: 0.85rem; margin-top: 0.5rem; }
+
 #boot-error { border-color: var(--c2); }
 #boot-error code { background: var(--bg); padding: 0.15rem 0.35rem; border-radius: 4px; }
 pre { overflow-x: auto; font-size: 0.8rem; color: var(--muted); margin: 0.5rem 0 0; }
@@ -138,6 +153,7 @@ pre { overflow-x: auto; font-size: 0.8rem; color: var(--muted); margin: 0.5rem 0
   <h2>WebAssembly module not found</h2>
   <p>Build it first, from the repository root:</p>
   <p><code>wasm-pack build --target web --release xraydb-wasm --out-dir ../web/pkg</code></p>
+  <p><code>cp xraydb-lib/data/xraydb.bin.zst web/data/</code></p>
   <p>then serve this directory: <code>python3 -m http.server -d web 8080</code></p>
   <pre id="boot-error-detail"></pre>
 </div>
@@ -152,7 +168,11 @@ pre { overflow-x: auto; font-size: 0.8rem; color: var(--muted); margin: 0.5rem 0
 
 <main>
   <section class="panel">
-    <h2>Select an element</h2>
+    <div class="panel-head">
+      <h2>Select an element</h2>
+      <input type="search" id="el-search" placeholder="Fe, iron, 26…" autocomplete="off"
+             aria-label="Jump to an element by symbol, name, or atomic number">
+    </div>
     <div class="ptable-scroll">
       <div id="ptable" role="group" aria-label="Periodic table" tabindex="0"></div>
     </div>
@@ -201,6 +221,36 @@ pre { overflow-x: auto; font-size: 0.8rem; color: var(--muted); margin: 0.5rem 0
         <svg id="plot" viewBox="0 0 900 460" role="img" aria-label="Cross-section plot"></svg>
         <div id="legend"></div>
         <div id="readout"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Compounds &amp; materials</h2>
+    <div class="controls">
+      <div class="field">
+        <label for="mat-select">Material</label>
+        <select id="mat-select"><option value="">custom formula…</option></select>
+      </div>
+      <div class="field">
+        <label for="mat-formula">Formula</label>
+        <input type="text" id="mat-formula" value="H2O" spellcheck="false" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="mat-density">Density (g/cm³)</label>
+        <input type="number" id="mat-density" value="1.0" min="0" step="0.01">
+      </div>
+      <div class="field">
+        <label for="mat-energy">Readout energy (eV)</label>
+        <input type="number" id="mat-energy" value="10000" min="1" step="100">
+      </div>
+    </div>
+    <p class="empty" id="mat-error" hidden></p>
+    <div class="detail">
+      <dl id="mat-facts"></dl>
+      <div>
+        <svg id="mat-plot" viewBox="0 0 900 320" role="img" aria-label="Material attenuation plot"></svg>
+        <div id="mat-legend" class="key-row"></div>
       </div>
     </div>
   </section>
