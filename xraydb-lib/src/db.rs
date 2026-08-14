@@ -5,6 +5,7 @@ use std::sync::OnceLock;
 
 use xraydb_data::XrayDatabase;
 
+use crate::cubic_spline::natural_second_derivatives_dedup;
 use crate::error::{Result, XrayDbError};
 use crate::interp::safe_ln;
 
@@ -22,6 +23,12 @@ pub(crate) struct ChantlerLogs {
     pub(crate) log_photo: Vec<f64>,
     pub(crate) log_incoh: Vec<f64>,
     pub(crate) log_total: Vec<f64>,
+    /// Second derivatives of the natural cubic spline through `(energy, f1)`.
+    ///
+    /// Upstream fits this spline per query, to a window of the grid spanning the
+    /// requested energies. Fitting it once, globally, is that window's limit and is
+    /// independent of the query; see [`crate::cubic_spline`].
+    pub(crate) f1_spline: Vec<f64>,
 }
 
 impl ChantlerLogs {
@@ -33,6 +40,7 @@ impl ChantlerLogs {
             log_photo: ln_all(&row.mu_photo),
             log_incoh: ln_all(&row.mu_incoh),
             log_total: ln_all(&row.mu_total),
+            f1_spline: natural_second_derivatives_dedup(&row.energy, &row.f1),
         }
     }
 }

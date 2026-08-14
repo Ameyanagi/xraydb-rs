@@ -3,7 +3,7 @@ members = ["xraydb-cli", "xraydb-data", "xraydb-generate", "xraydb-lib", "xraydb
 resolver = "3"
 
 [workspace.package]
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
 # Multi-line let-chains (`if let .. && ..`) require 1.88 on edition 2024.
 rust-version = "1.88"
@@ -12,8 +12,8 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/Ameyanagi/xraydb-rs"
 
 [workspace.dependencies]
-xraydb = { version = "0.2.0", path = "xraydb-lib" }
-xraydb-data = { version = "0.2.0", path = "xraydb-data" }
+xraydb = { version = "0.3.0", path = "xraydb-lib" }
+xraydb-data = { version = "0.3.0", path = "xraydb-data" }
 
 anyhow = "1"
 approx = "0.5"

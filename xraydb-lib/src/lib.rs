@@ -76,6 +76,7 @@ pub mod compton;
 pub mod constants;
 pub mod core_widths;
 pub mod coster_kronig;
+pub(crate) mod cubic_spline;
 pub mod db;
 pub mod elam;
 pub mod error;
