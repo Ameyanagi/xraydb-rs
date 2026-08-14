@@ -11,7 +11,7 @@ use xraydb_data::ChantlerRecord;
 ///   - Line 2 (comment): `# ... sigma_mu = <sigma_mu>`
 ///   - Line 3 (comment): `# ... f2 = <mue_f2>`
 ///   - Further comment lines may contain relativistic/nuclear corrections
-///   - Data lines: energy(keV)  f1(e/atom)  f2(e/atom)  mu_photo  mu_incoh  [mu_total]
+///   - Data lines: energy(keV)  f1(e/atom)  f2(e/atom)  mu_photo  mu_incoh  \[mu_total\]
 pub fn parse_chantler(dir: &Path) -> Result<Vec<ChantlerRecord>> {
     let mut records = Vec::new();
 

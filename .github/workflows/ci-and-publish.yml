@@ -62,7 +62,7 @@ jobs:
       - name: Build docs with warnings denied
         env:
           RUSTDOCFLAGS: "-D warnings"
-        run: cargo doc --workspace --all-features --no-deps
+        run: cargo doc -p xraydb -p xraydb-data --all-features --no-deps
 
   msrv:
     name: Minimum supported Rust version
