@@ -133,12 +133,15 @@ jobs:
         run: cargo clippy -p xraydb-wasm --target wasm32-unknown-unknown --all-targets -- -D warnings
       - name: Install wasm-pack
         uses: jetli/wasm-pack-action@v0.4.0
-      - name: Build the browser bundle
-        run: wasm-pack build --target web --release xraydb-wasm --out-dir ../web/pkg
-      - name: Confirm the demo's expected files exist
+      - name: Build the distributable package
+        run: ./xraydb-wasm/build-pkg.sh
+      - name: Confirm the package is self-contained
         run: |
           test -f web/pkg/xraydb_wasm.js
           test -f web/pkg/xraydb_wasm_bg.wasm
+          test -f web/pkg/xraydb.bin.zst
+          test -f web/pkg/loader.mjs
+          grep -q 'xraydb.bin.zst' web/pkg/package.json
           test -f web/index.html
           test -f web/app.js
 

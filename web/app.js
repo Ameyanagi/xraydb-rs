@@ -1,5 +1,7 @@
 // xraydb-rs browser demo — no dependencies, no build step beyond wasm-pack.
-import init, * as xray from './pkg/xraydb_wasm.js';
+// The demo consumes the package exactly the way an npm user would: through the
+// loader, which fetches the data blob shipped alongside the module.
+import initXraydb, * as xray from './pkg/loader.mjs';
 import { LAYOUT } from './layout.js';
 
 const SERIES = {
@@ -37,15 +39,9 @@ const state = {
 
 async function boot() {
   try {
-    // The module is built without the embedded database, so the small .wasm and the
-    // 3 MB data blob download in parallel and the browser caches them separately.
-    const [, dataResp] = await Promise.all([init(), fetch('data/xraydb.bin.zst')]);
-    if (!dataResp.ok) {
-      throw new Error(`data/xraydb.bin.zst: HTTP ${dataResp.status} — ` +
-        'copy it with: cp xraydb-lib/data/xraydb.bin.zst web/data/');
-    }
-    xray.init();
-    xray.load_database(new Uint8Array(await dataResp.arrayBuffer()));
+    // Module (~350 KB) and database (~3 MB) download in parallel and cache
+    // independently; the loader wires them together.
+    await initXraydb();
   } catch (err) {
     $('boot-error').hidden = false;
     $('boot-error-detail').textContent = String(err);
