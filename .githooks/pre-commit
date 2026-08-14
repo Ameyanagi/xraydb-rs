@@ -16,6 +16,10 @@ if ! command -v cargo >/dev/null 2>&1; then
     fail "cargo not found on PATH"
 fi
 
+info "Cargo.lock is up to date"
+cargo check --workspace --locked --quiet \
+    || fail "Cargo.lock is stale — run 'cargo check --workspace' and stage Cargo.lock"
+
 info "rustfmt"
 cargo fmt --all --check || fail "formatting issues — run 'cargo fmt --all'"
 
