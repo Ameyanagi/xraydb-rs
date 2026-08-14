@@ -10,7 +10,7 @@ The complete database — elements, absorption edges, emission lines, Elam and C
 
 ```toml
 [dependencies]
-xraydb = "0.2"
+xraydb = "0.3"
 ```
 
 ## Usage
@@ -92,7 +92,7 @@ Crystal Darwin widths and mirror/multilayer reflectivity. Parameter structs with
 
 ```toml
 [dependencies]
-xraydb = { version = "0.2", features = ["optics"] }
+xraydb = { version = "0.3", features = ["optics"] }
 ```
 
 ```rust
@@ -121,6 +121,24 @@ let refl = db.mirror_reflectivity(MirrorParams {
 # }
 # Ok::<(), xraydb::XrayDbError>(())
 ```
+
+### Accuracy of `f1_chantler`
+
+f1 is evaluated with an interpolating natural cubic spline through the Chantler grid,
+which reproduces upstream XrayDB to within 5e-12.
+
+Upstream fits its spline to a *window* of the grid spanning the requested energies padded
+by three points either side, so its answer depends on what else is in the same call —
+`f1_chantler('Au', 11919)` alone gives −17.745813, while the same energy inside a wider
+batch gives −17.769546. Fitting once, globally, is the limit that windowing converges to
+and does not depend on the query.
+
+Validated against 1,727 reference values from upstream spanning 30 elements and every
+tabulated absorption edge (`xraydb-lib/tests/data/f1_chantler_reference.csv`).
+
+One practical difference: caesium's grid repeats 11.4 eV, which makes upstream raise
+`ValueError: x must be strictly increasing`. Here the spline is fitted to the strictly
+increasing subsequence, so every element stays queryable.
 
 ### Energy clamping
 
@@ -186,6 +204,7 @@ Typical timings on an M-series Mac, release build (see `cargo bench`):
 
 | Operation | Time |
 |---|---|
+| `f1_chantler_at` | ~100 ns |
 | `f2_chantler_at` | ~120 ns |
 | `mu_elam_at` | ~113 ns |
 | `xray_edge` | ~78 ns |

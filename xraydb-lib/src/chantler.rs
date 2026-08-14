@@ -2,7 +2,8 @@
 
 use crate::db::{ChantlerLogs, XrayDb};
 use crate::error::{Result, XrayDbError};
-use crate::interp::{interp_loglog_pre, interp_one};
+use crate::interp::interp_loglog_pre;
+use crate::spline::elam_spline_one;
 
 /// Which Chantler mass attenuation coefficient to evaluate.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -59,30 +60,42 @@ impl XrayDb {
 
     /// f1 — the real part of the anomalous scattering factor, at one energy.
     ///
-    /// # Note on accuracy
-    ///
-    /// Upstream XrayDB evaluates f1 with a smoothing spline (`UnivariateSpline`, `s=0`);
-    /// this port uses linear interpolation on the same grid. Agreement is close between
-    /// tabulated points and exact at them, but the two are not bit-identical.
+    /// Evaluated with an interpolating natural cubic spline through the tabulated grid.
     ///
     /// The tabulated quantity is f′ (the anomalous correction with Z already subtracted),
     /// not the full f1 — add Z for the total.
     ///
+    /// # Agreement with upstream
+    ///
+    /// Upstream XrayDB fits `UnivariateSpline(s=0)` to a *window* of the grid spanning
+    /// the requested energies padded by three points either side, so its answer depends
+    /// on what else is in the same call: `f1_chantler('Au', 11919)` alone gives
+    /// −17.745813, but the same energy inside a wide batch gives −17.769546.
+    ///
+    /// This implementation fits the spline once, globally, which is the limit upstream
+    /// converges to as its window grows and does not depend on the query. Agreement with
+    /// upstream's wide-window values is within 5e-12 across the tabulated range.
+    ///
     /// Energies outside the tabulated range are clamped to its endpoints; see
     /// [`XrayDb::chantler_energy_range`].
     pub fn f1_chantler_at(&self, element: &str, energy: f64) -> Result<f64> {
-        let (row, _) = self.chantler_record(element)?;
+        let (row, logs) = self.chantler_record(element)?;
         let (emin, emax) = energy_bounds(row);
-        Ok(interp_one(energy.clamp(emin, emax), &row.energy, &row.f1))
+        Ok(elam_spline_one(
+            &row.energy,
+            &row.f1,
+            &logs.f1_spline,
+            energy.clamp(emin, emax),
+        ))
     }
 
     /// f1 at each of several energies. See [`XrayDb::f1_chantler_at`].
     pub fn f1_chantler(&self, element: &str, energies: &[f64]) -> Result<Vec<f64>> {
-        let (row, _) = self.chantler_record(element)?;
+        let (row, logs) = self.chantler_record(element)?;
         let (emin, emax) = energy_bounds(row);
         Ok(energies
             .iter()
-            .map(|&e| interp_one(e.clamp(emin, emax), &row.energy, &row.f1))
+            .map(|&e| elam_spline_one(&row.energy, &row.f1, &logs.f1_spline, e.clamp(emin, emax)))
             .collect())
     }
 
