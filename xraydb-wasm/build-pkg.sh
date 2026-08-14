@@ -16,15 +16,19 @@ wasm-pack build --target web --release --out-dir "$OUT"
 
 cp ../xraydb-lib/data/xraydb.bin.zst "$OUT/xraydb.bin.zst"
 cp loader.mjs "$OUT/loader.mjs"
+cp loader.d.mts "$OUT/loader.d.mts"
 
 # Register the extras in package.json so `npm publish` from pkg/ would include them.
 node - "$OUT/package.json" <<'EOF'
 const fs = require('fs');
 const path = process.argv[2];
 const pkg = JSON.parse(fs.readFileSync(path, 'utf8'));
-for (const f of ['xraydb.bin.zst', 'loader.mjs']) {
+for (const f of ['xraydb.bin.zst', 'loader.mjs', 'loader.d.mts']) {
     if (!pkg.files.includes(f)) pkg.files.push(f);
 }
+pkg.homepage = 'https://github.com/Ameyanagi/xraydb-rs';
+pkg.keywords = ['xray', 'physics', 'spectroscopy', 'xraydb', 'wasm', 'webassembly',
+                'absorption', 'crystallography'];
 fs.writeFileSync(path, JSON.stringify(pkg, null, 2) + '\n');
 EOF
 
