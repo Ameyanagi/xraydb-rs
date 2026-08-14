@@ -25,8 +25,24 @@ pub fn init() {
     console_error_panic_hook::set_once();
 }
 
+/// Load the database from a zstd-compressed blob (the contents of `xraydb.bin.zst`).
+///
+/// This module is built without the embedded database to keep the `.wasm` small, so
+/// call this once, before any query. The first successful load wins; later calls are
+/// no-ops that return the already-loaded state.
+#[wasm_bindgen]
+pub fn load_database(bytes: &[u8]) -> Result<(), JsError> {
+    XrayDb::load_compressed(bytes).map(|_| ()).map_err(to_js)
+}
+
+/// True once [`load_database`] has succeeded.
+#[wasm_bindgen]
+pub fn database_loaded() -> bool {
+    XrayDb::is_loaded()
+}
+
 fn db() -> Result<XrayDb, JsError> {
-    XrayDb::try_new().map_err(to_js)
+    XrayDb::current().map_err(to_js)
 }
 
 fn to_js(e: xraydb::XrayDbError) -> JsError {

@@ -21,3 +21,6 @@ prd.json
 
 # wasm-pack output
 /web/pkg
+
+# Database blob served to the demo (copied from xraydb-lib/data)
+/web/data

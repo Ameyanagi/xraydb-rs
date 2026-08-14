@@ -37,14 +37,21 @@ const state = {
 
 async function boot() {
   try {
-    await init();
+    // The module is built without the embedded database, so the small .wasm and the
+    // 3 MB data blob download in parallel and the browser caches them separately.
+    const [, dataResp] = await Promise.all([init(), fetch('data/xraydb.bin.zst')]);
+    if (!dataResp.ok) {
+      throw new Error(`data/xraydb.bin.zst: HTTP ${dataResp.status} — ` +
+        'copy it with: cp xraydb-lib/data/xraydb.bin.zst web/data/');
+    }
+    xray.init();
+    xray.load_database(new Uint8Array(await dataResp.arrayBuffer()));
   } catch (err) {
     $('boot-error').hidden = false;
     $('boot-error-detail').textContent = String(err);
     $('app').hidden = true;
     return;
   }
-  xray.init();
 
   const version = xray.data_version();
   $('meta').textContent =
@@ -52,8 +59,41 @@ async function boot() {
 
   buildPeriodicTable();
   wireControls();
+  wireSearch();
+  wireMaterials();
   state.ready = true;
-  select(26);
+
+  // #Fe / #iron / #26 makes the page bookmarkable and shareable.
+  select(elementFromHash() ?? 26);
+  window.addEventListener('hashchange', () => {
+    const z = elementFromHash();
+    if (z && z !== state.z) select(z);
+  });
+}
+
+function elementFromHash() {
+  const raw = decodeURIComponent(location.hash.replace(/^#/, '')).trim();
+  if (!raw) return null;
+  try {
+    return xray.atomic_number(raw);
+  } catch {
+    return null;
+  }
+}
+
+function wireSearch() {
+  const box = $('el-search');
+  box.addEventListener('keydown', (ev) => {
+    if (ev.key !== 'Enter') return;
+    try {
+      select(xray.atomic_number(box.value.trim()));
+      box.value = '';
+      box.classList.remove('miss');
+    } catch {
+      box.classList.add('miss');
+    }
+  });
+  box.addEventListener('input', () => box.classList.remove('miss'));
 }
 
 // ── Periodic table ──────────────────────────────────────────────────────────
@@ -114,6 +154,11 @@ function select(z) {
   }
   const active = document.querySelector('.el-active');
   if (active) active.focus({ preventScroll: true });
+  try {
+    history.replaceState(null, '', '#' + xray.symbol(String(z)));
+  } catch {
+    /* keep the old hash */
+  }
   render();
 }
 
@@ -150,6 +195,125 @@ function wireControls() {
   });
 }
 
+// ── Compounds & materials ───────────────────────────────────────────────────
+
+function wireMaterials() {
+  const sel = $('mat-select');
+  for (const m of xray.materials()) {
+    const opt = document.createElement('option');
+    opt.value = m.formula;
+    opt.dataset.density = m.density;
+    opt.textContent = `${m.name} (${m.formula})`;
+    sel.appendChild(opt);
+  }
+  sel.addEventListener('change', () => {
+    if (!sel.value) return;
+    $('mat-formula').value = sel.value;
+    $('mat-density').value = sel.selectedOptions[0].dataset.density;
+    renderMaterial();
+  });
+  $('mat-formula').addEventListener('input', () => {
+    sel.value = '';
+    renderMaterial();
+  });
+  for (const id of ['mat-density', 'mat-energy']) {
+    $(id).addEventListener('change', renderMaterial);
+  }
+  renderMaterial();
+}
+
+function renderMaterial() {
+  const formula = $('mat-formula').value.trim();
+  const density = Number($('mat-density').value);
+  const energy = Number($('mat-energy').value) || 10000;
+  const errBox = $('mat-error');
+  const input = $('mat-formula');
+
+  const fail = (msg) => {
+    input.classList.add('invalid');
+    errBox.textContent = msg;
+    errBox.hidden = false;
+    $('mat-facts').innerHTML = '';
+    $('mat-plot').innerHTML = '';
+    $('mat-legend').innerHTML = '';
+  };
+
+  if (!formula) return fail('Enter a chemical formula.');
+  if (!(density > 0)) return fail('Density must be positive.');
+  if (!xray.validate_formula(formula)) return fail(`“${formula}” does not parse as a formula.`);
+  input.classList.remove('invalid');
+  errBox.hidden = true;
+
+  let mu, n;
+  try {
+    const grid = new Float64Array(logspace(state.emin, state.emax, 400));
+    mu = { grid, values: Array.from(xray.material_mu(formula, density, grid, 'total')) };
+    n = xray.xray_delta_beta(formula, density, energy);
+  } catch (err) {
+    return fail(String(err));
+  }
+
+  const muAt = (() => {
+    try { return xray.material_mu(formula, density, new Float64Array([energy]), 'total')[0]; }
+    catch { return NaN; }
+  })();
+  const critMrad = n.delta > 0 ? Math.sqrt(2 * n.delta) * 1000 : 0;
+
+  $('mat-facts').innerHTML = `
+    <div><dt>µ at ${fmt(energy, 5)} eV</dt><dd>${fmt(muAt)} cm⁻¹</dd></div>
+    <div><dt>Attenuation length</dt><dd>${fmt(muAt > 0 ? 1 / muAt : Infinity)} cm</dd></div>
+    <div><dt>δ (refractive)</dt><dd>${fmt(n.delta)}</dd></div>
+    <div><dt>β (absorptive)</dt><dd>${fmt(n.beta)}</dd></div>
+    <div><dt>Critical angle</dt><dd>${fmt(critMrad, 3)} mrad</dd></div>
+  `;
+
+  drawLoglogPlot($('mat-plot'), mu.grid, mu.values, 'µ (1/cm)');
+  $('mat-legend').innerHTML =
+    `<span class="key"><i style="background:var(--c1)"></i>µ total, ${formula} at ${fmt(density, 3)} g/cm³</span>`;
+}
+
+/// Compact log-log renderer for the material panel (single trace).
+function drawLoglogPlot(svg, energies, values, yLabel) {
+  const W = 900, H = 320, ML = 74, MR = 20, MT = 14, MB = 44;
+  const finite = values.filter((v) => isFinite(v) && v > 0);
+  if (!finite.length) { svg.innerHTML = ''; return; }
+  const [vmin, vmax] = [Math.min(...finite), Math.max(...finite)];
+  const emin = energies[0], emax = energies[energies.length - 1];
+  const px = (e) => ML + ((Math.log(e) - Math.log(emin)) / (Math.log(emax) - Math.log(emin))) * (W - ML - MR);
+  const py = (v) => H - MB - ((Math.log(v) - Math.log(vmin)) / (Math.log(vmax) - Math.log(vmin) || 1)) * (H - MT - MB);
+
+  const parts = [];
+  for (let d = Math.floor(Math.log10(emin)); d <= Math.ceil(Math.log10(emax)); d++) {
+    for (const m of [1, 2, 5]) {
+      const e = m * 10 ** d;
+      if (e < emin || e > emax) continue;
+      parts.push(`<line class="grid" x1="${px(e)}" y1="${MT}" x2="${px(e)}" y2="${H - MB}"/>`);
+      parts.push(`<text class="tick" x="${px(e)}" y="${H - MB + 16}" text-anchor="middle">${e >= 1000 ? `${e / 1000}k` : e}</text>`);
+    }
+  }
+  for (let d = Math.floor(Math.log10(vmin)); d <= Math.ceil(Math.log10(vmax)); d++) {
+    const v = 10 ** d;
+    const y = py(v);
+    if (y < MT || y > H - MB) continue;
+    parts.push(`<line class="grid" x1="${ML}" y1="${y}" x2="${W - MR}" y2="${y}"/>`);
+    parts.push(`<text class="tick" x="${ML - 8}" y="${y + 4}" text-anchor="end">1e${d}</text>`);
+  }
+  let d = '', pen = false;
+  for (let i = 0; i < energies.length; i++) {
+    const v = values[i];
+    if (!(isFinite(v) && v > 0)) { pen = false; continue; }
+    d += `${pen ? 'L' : 'M'}${px(energies[i]).toFixed(2)},${py(v).toFixed(2)}`;
+    pen = true;
+  }
+  parts.push(`<path class="trace" d="${d}" style="stroke:var(--c1)"/>`);
+  parts.push(`<line class="axis" x1="${ML}" y1="${H - MB}" x2="${W - MR}" y2="${H - MB}"/>`);
+  parts.push(`<line class="axis" x1="${ML}" y1="${MT}" x2="${ML}" y2="${H - MB}"/>`);
+  parts.push(`<text class="axis-label" x="${(ML + W - MR) / 2}" y="${H - 6}" text-anchor="middle">Energy (eV)</text>`);
+  parts.push(`<text class="axis-label" transform="translate(16,${(MT + H - MB) / 2}) rotate(-90)" text-anchor="middle">${yLabel}</text>`);
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.innerHTML = parts.join('');
+}
+
 // ── Rendering ───────────────────────────────────────────────────────────────
 
 function render() {
@@ -177,6 +341,7 @@ function render() {
   renderEdges(id);
   renderLines(id);
   renderPlot(id);
+  if (document.getElementById('mat-formula')) renderMaterial();
 }
 
 function renderEdges(id) {
