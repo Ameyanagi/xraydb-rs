@@ -181,7 +181,7 @@ xraydb commands --json      # every subcommand, argument, enum value, and defaul
 A zero-dependency demo page with a periodic-table selector and live cross-section plots:
 
 ```sh
-wasm-pack build --target web --release xraydb-wasm --out-dir ../web/pkg
+./xraydb-wasm/build-pkg.sh     # wasm-pack + bundles the data blob and loader into web/pkg
 python3 -m http.server -d web 8080
 ```
 

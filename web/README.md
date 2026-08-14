@@ -8,18 +8,25 @@ selector, edge and emission-line tables, and live log-log cross-section plots.
 From the repository root:
 
 ```sh
-wasm-pack build --target web --release xraydb-wasm --out-dir ../web/pkg
+./xraydb-wasm/build-pkg.sh
 python3 -m http.server -d web 8080
 ```
 
-The WASM module is built without the embedded database (~350 KB instead of ~3.5 MB);
-the page fetches `data/xraydb.bin.zst` in parallel with it. `web/data/xraydb.bin.zst`
-is a committed symlink into `xraydb-lib/data/`, so it needs no copy step and can never
-lag a regenerated blob. Code and data are cached separately by the browser: editing
-the demo re-downloads 350 KB, not 3.5 MB.
+`build-pkg.sh` wraps `wasm-pack` and makes `web/pkg/` a self-contained package: the
+module is built without the embedded database (~350 KB instead of ~3.5 MB), and the
+data blob plus `loader.mjs` are copied in beside it and listed in its `package.json`.
 
-Deploying to a static host that does not follow symlinks? Replace the symlink with the
-real file: `cp xraydb-lib/data/xraydb.bin.zst web/data/`.
+The demo — and any npm consumer — uses the package the same way:
+
+```js
+import initXraydb from './pkg/loader.mjs';   // or 'xraydb-wasm/loader.mjs' from npm
+const xraydb = await initXraydb();
+xraydb.atomic_number('Fe');                  // 26
+```
+
+Module and data download in parallel and cache independently, so editing the demo
+re-downloads 350 KB, not 3.5 MB. Pass a URL to `initXraydb(url)` to host the blob
+elsewhere (a CDN, a different path).
 
 Then open <http://localhost:8080>.
 

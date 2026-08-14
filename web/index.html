@@ -152,7 +152,7 @@ pre { overflow-x: auto; font-size: 0.8rem; color: var(--muted); margin: 0.5rem 0
 <div class="panel" id="boot-error" hidden>
   <h2>WebAssembly module not found</h2>
   <p>Build it first, from the repository root:</p>
-  <p><code>wasm-pack build --target web --release xraydb-wasm --out-dir ../web/pkg</code></p>
+  <p><code>./xraydb-wasm/build-pkg.sh</code></p>
   <p>then serve this directory: <code>python3 -m http.server -d web 8080</code></p>
   <pre id="boot-error-detail"></pre>
 </div>
