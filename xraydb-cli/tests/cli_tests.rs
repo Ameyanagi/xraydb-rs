@@ -315,3 +315,138 @@ fn help_and_version_work() {
         assert!(out.status.success(), "`{sub} --help` failed");
     }
 }
+
+// ── Machine-readable contract ───────────────────────────────────────────────
+//
+// These pin the behaviour that scripts and LLM agents depend on: discoverable
+// commands, JSON errors when JSON was requested, and a clean stdout on failure.
+
+#[test]
+fn commands_describes_every_subcommand() {
+    let v = json_of(&["--json", "commands"]);
+    let specs = v.as_array().expect("array of command specs");
+
+    let names: Vec<&str> = specs.iter().filter_map(|s| s["name"].as_str()).collect();
+    for expected in [
+        "element",
+        "edges",
+        "edge",
+        "lines",
+        "mu",
+        "f1f2",
+        "mu-chantler",
+        "f0",
+        "delta-beta",
+        "material",
+        "materials",
+        "guess-edge",
+        "core-width",
+        "ionchamber",
+        "compton",
+        "info",
+        "commands",
+    ] {
+        assert!(
+            names.contains(&expected),
+            "missing '{expected}' in {names:?}"
+        );
+    }
+
+    // Every command carries a description and every argument documents itself.
+    for spec in specs {
+        let name = spec["name"].as_str().unwrap_or_default();
+        assert!(spec["about"].is_string(), "'{name}' has no description");
+        for arg in spec["args"].as_array().expect("args array") {
+            assert!(
+                arg["help"].is_string(),
+                "'{name}' arg '{}' has no help",
+                arg["name"]
+            );
+        }
+    }
+}
+
+#[test]
+fn commands_reports_enum_values_and_defaults() {
+    let v = json_of(&["--json", "commands"]);
+    let mu = v
+        .as_array()
+        .and_then(|s| s.iter().find(|c| c["name"] == "mu"))
+        .expect("mu command");
+
+    let kind = mu["args"]
+        .as_array()
+        .and_then(|a| a.iter().find(|x| x["name"] == "kind"))
+        .expect("kind arg");
+    let values: Vec<&str> = kind["possible_values"]
+        .as_array()
+        .expect("possible_values")
+        .iter()
+        .filter_map(|v| v.as_str())
+        .collect();
+    assert_eq!(values, ["total", "photo", "coherent", "incoherent"]);
+    assert_eq!(kind["default"], "total");
+    assert_eq!(kind["required"], false);
+
+    // Positional, required, no long flag.
+    let target = mu["args"]
+        .as_array()
+        .and_then(|a| a.iter().find(|x| x["name"] == "target"))
+        .expect("target arg");
+    assert_eq!(target["required"], true);
+    assert!(target["long"].is_null());
+}
+
+#[test]
+fn boolean_flags_are_not_reported_as_taking_values() {
+    let v = json_of(&["--json", "commands"]);
+    let f0 = v
+        .as_array()
+        .and_then(|s| s.iter().find(|c| c["name"] == "f0"))
+        .expect("f0 command");
+    let list = f0["args"]
+        .as_array()
+        .and_then(|a| a.iter().find(|x| x["name"] == "list"))
+        .expect("list arg");
+    assert_eq!(list["takes_value"], false);
+}
+
+#[test]
+fn errors_are_json_when_json_was_requested() {
+    let out = run(&["--json", "element", "Fx"]);
+    assert!(!out.status.success());
+
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    let parsed: serde_json::Value = serde_json::from_str(&stderr)
+        .unwrap_or_else(|e| panic!("stderr is not JSON: {e}\n{stderr}"));
+    assert!(
+        parsed["error"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("unknown element: Fx"),
+        "{parsed}"
+    );
+    assert!(parsed["context"].is_array());
+
+    // stdout must stay empty so a consumer parsing it does not see partial output.
+    assert!(out.stdout.is_empty(), "stdout was not empty on failure");
+}
+
+#[test]
+fn errors_stay_plain_text_without_json() {
+    let out = run(&["element", "Fx"]);
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.starts_with("error: "), "{stderr}");
+    assert!(serde_json::from_str::<serde_json::Value>(&stderr).is_err());
+}
+
+#[test]
+fn json_error_includes_the_context_chain() {
+    // A failure raised deeper than the top level should surface its chain.
+    let out = run(&["--json", "mu", "Fe", "-e", "not-a-number"]);
+    assert!(!out.status.success());
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    let parsed: serde_json::Value = serde_json::from_str(&stderr).expect("JSON error");
+    let chain = parsed["context"].as_array().expect("context array");
+    assert!(chain.len() >= 2, "expected a context chain, got {chain:?}");
+}
