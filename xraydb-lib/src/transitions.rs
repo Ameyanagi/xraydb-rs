@@ -131,10 +131,12 @@ impl XrayDb {
             let Some(trans) = self.raw().xray_transitions.get(idx) else {
                 continue;
             };
-            if let Some(level) = initial_level
-                && trans.initial_level != level
-            {
-                continue;
+            // Not a let-chain: those need Rust 1.88, and the MSRV is lower on purpose.
+            #[allow(clippy::collapsible_if)]
+            if let Some(level) = initial_level {
+                if trans.initial_level != level {
+                    continue;
+                }
             }
             if let Some(ref reachable) = excitable {
                 // A transition from a level with no tabulated edge is kept, matching
@@ -283,19 +285,23 @@ impl XrayDb {
 
         // Upward from the insertion point.
         for &idx in &sorted[start..] {
-            if let Some(ref b) = best
-                && levels[idx].absorption_edge - energy > b.difference.abs()
-            {
-                break;
+            // Not a let-chain: those need Rust 1.88, and the MSRV is lower on purpose.
+            #[allow(clippy::collapsible_if)]
+            if let Some(ref b) = best {
+                if levels[idx].absorption_edge - energy > b.difference.abs() {
+                    break;
+                }
             }
             consider(idx, &mut best);
         }
         // Downward from the insertion point.
         for &idx in sorted[..start].iter().rev() {
-            if let Some(ref b) = best
-                && energy - levels[idx].absorption_edge > b.difference.abs()
-            {
-                break;
+            // Not a let-chain: those need Rust 1.88, and the MSRV is lower on purpose.
+            #[allow(clippy::collapsible_if)]
+            if let Some(ref b) = best {
+                if energy - levels[idx].absorption_edge > b.difference.abs() {
+                    break;
+                }
             }
             consider(idx, &mut best);
         }

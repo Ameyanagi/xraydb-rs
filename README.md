@@ -211,6 +211,14 @@ Typical timings on an M-series Mac, release build (see `cargo bench`):
 | `xray_delta_beta` | ~1.1 µs |
 | `mu_elam` batch of 200 | ~7 µs |
 
+## Minimum supported Rust version
+
+**1.87.** The crate's own code compiles on 1.85 (edition 2024's floor); the extra two
+versions come from `ruzstd`, which decompresses the embedded database. `xraydb-data`,
+which has no such dependency, declares 1.85.
+
+MSRV is checked in CI against the version declared in `Cargo.toml`, so it cannot drift.
+
 ## Development
 
 ```sh
