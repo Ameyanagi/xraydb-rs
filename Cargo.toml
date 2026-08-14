@@ -3,7 +3,7 @@ members = ["xraydb-cli", "xraydb-data", "xraydb-generate", "xraydb-lib", "xraydb
 resolver = "3"
 
 [workspace.package]
-version = "0.3.0"
+version = "0.4.0"
 edition = "2024"
 # Our own code compiles on 1.85 (edition 2024's floor). The workspace floor is 1.87
 # only because `ruzstd` uses `unsigned_is_multiple_of`, stabilised in 1.87. Verified
@@ -15,8 +15,8 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/Ameyanagi/xraydb-rs"
 
 [workspace.dependencies]
-xraydb = { version = "0.3.0", path = "xraydb-lib" }
-xraydb-data = { version = "0.3.0", path = "xraydb-data" }
+xraydb = { version = "0.4.0", path = "xraydb-lib" }
+xraydb-data = { version = "0.4.0", path = "xraydb-data" }
 
 anyhow = "1"
 approx = "0.5"

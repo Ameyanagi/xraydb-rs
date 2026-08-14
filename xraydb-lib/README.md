@@ -10,7 +10,7 @@ The complete database — elements, absorption edges, emission lines, Elam and C
 
 ```toml
 [dependencies]
-xraydb = "0.3"
+xraydb = "0.4"
 ```
 
 ## Usage
@@ -92,7 +92,7 @@ Crystal Darwin widths and mirror/multilayer reflectivity. Parameter structs with
 
 ```toml
 [dependencies]
-xraydb = { version = "0.3", features = ["optics"] }
+xraydb = { version = "0.4", features = ["optics"] }
 ```
 
 ```rust
@@ -218,7 +218,7 @@ The database is compiled in by default, which costs about 3 MB. Turn the
 
 ```toml
 [dependencies]
-xraydb = { version = "0.3", default-features = false, features = ["zstd"] }
+xraydb = { version = "0.4", default-features = false, features = ["zstd"] }
 ```
 
 ```rust,ignore
