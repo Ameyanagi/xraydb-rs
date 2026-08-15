@@ -191,8 +191,10 @@ const xraydb = await initXraydb();
 xraydb.atomic_number('Fe');   // 26
 ```
 
-Publish a new version with `./xraydb-wasm/build-pkg.sh && cd web/pkg && npm publish`
-(the version follows the workspace's Cargo version).
+Releases publish it automatically: the tag workflow uses npm [trusted publishing]
+(OIDC — no token secret), building via `build-pkg.sh` and skipping if the version is
+already on the registry. The version follows the workspace's Cargo version. Manual
+fallback: `./xraydb-wasm/build-pkg.sh && cd web/pkg && npm publish`.
 
 ## Browser demo
 
